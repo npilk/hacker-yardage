@@ -8,12 +8,11 @@ import tkinter.messagebox as mb
 import time
 
 
+root = tk.Tk()
+root.title("Hacker Yardage")
 
-window = tk.Tk()
-window.title("Hacker Yardage")
-
-
-
+window = tk.Frame(master=root)
+window.pack(fill=tk.BOTH, expand=True)
 
 frm_title = tk.Frame(master=window)
 frm_title.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -26,11 +25,13 @@ frm_options.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
 frm_options.columnconfigure(0, weight=1, minsize=200)
 frm_options.columnconfigure(1, weight=1, minsize=200)
-frm_options.rowconfigure(0, weight=1, minsize=500)
+frm_options.rowconfigure(0, weight=1, minsize=200)
 
 frm_button = tk.Frame(master=window, height=20)
 frm_button.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
+def callback(url): # for opening hyperlink
+    webbrowser.open_new(url)
 
 
 def loadingWindow():
@@ -39,8 +40,6 @@ def loadingWindow():
     message = "Generating yardage book..."
     tk.Label(win, text=message).pack(padx=20,pady=20)
     return win
-
-
 
 
 def run_program():
@@ -113,8 +112,12 @@ def run_program():
 	return True
 
 
-btn_confirm = tk.Button(text="Generate Yardages",master=frm_button, command=run_program)
+btn_confirm = tk.Button(text="Generate Yardages",master=frm_button, command=run_program, width=20)
 btn_confirm.pack()
+
+link1 = tk.Label(master=frm_button, text="Support Hacker Yardage by checking out the merch at Store Brand Golf (www.storebrand.golf)", fg="blue")
+link1.pack(pady=10)
+link1.bind("<Button-1>", lambda e: callback("https://www.storebrand.golf"))
 
 
 
@@ -129,65 +132,63 @@ lbl_coords.grid(row=0, column=0, sticky="w")
 # throwaway_frame.grid(row=2, column=2)
 
 frm_minlon = tk.Frame(master=frm_coords)
-frm_minlon.grid(row=1, column=0, padx=5, pady=5)
+frm_minlon.grid(row=1, column=0, padx=5, pady=0)
 
 
 frm_maxlat = tk.Frame(master=frm_coords)
-frm_maxlat.grid(row=0, column=1, padx=5, pady=5)
+frm_maxlat.grid(row=0, column=1, padx=5, pady=0)
 
 
 frm_minlat = tk.Frame(master=frm_coords)
-frm_minlat.grid(row=2, column=1, padx=5, pady=5)
+frm_minlat.grid(row=2, column=1, padx=5, pady=0)
 
 
 frm_maxlon = tk.Frame(master=frm_coords)
-frm_maxlon.grid(row=1, column=2, padx=5, pady=5)
+frm_maxlon.grid(row=1, column=2, padx=5, pady=0)
 
 
 frm_coords.columnconfigure(0, weight=1, minsize=150)
-frm_coords.rowconfigure(0, weight=1, minsize=65)
+frm_coords.rowconfigure(0, weight=1, minsize=50)
 
 frm_coords.columnconfigure(1, weight=1, minsize=150)
-frm_coords.rowconfigure(1, weight=1, minsize=65)
+frm_coords.rowconfigure(1, weight=1, minsize=50)
 
 frm_coords.columnconfigure(2, weight=1, minsize=150)
-frm_coords.rowconfigure(2, weight=1, minsize=65)
+frm_coords.rowconfigure(2, weight=1, minsize=50)
 
 
 lbl_minlon = tk.Label(master=frm_minlon, text="West")
 ent_minlon = tk.Entry(master=frm_minlon)
-lbl_minlonexample = tk.Label(master=frm_minlon, text="Ex: -97.7114")
+ent_minlon.insert(0, "-97.7114")
 
 lbl_minlon.pack()
 ent_minlon.pack()
-lbl_minlonexample.pack()
-
 
 lbl_maxlat = tk.Label(master=frm_maxlat, text="North")
 ent_maxlat = tk.Entry(master=frm_maxlat)
-lbl_maxlatexample = tk.Label(master=frm_maxlat, text="Ex: 30.2448")
+ent_maxlat.insert(0, "30.2448")
 
 lbl_maxlat.pack()
 ent_maxlat.pack()
-lbl_maxlatexample.pack()
+
 
 
 lbl_minlat = tk.Label(master=frm_minlat, text="South")
 ent_minlat = tk.Entry(master=frm_minlat)
-lbl_minlatexample = tk.Label(master=frm_minlat, text="Ex: 30.2286")
+ent_minlat.insert(0, "30.2286")
 
 lbl_minlat.pack()
 ent_minlat.pack()
-lbl_minlatexample.pack()
+# lbl_minlatexample.pack()
 
 
 lbl_maxlon = tk.Label(master=frm_maxlon, text="East")
 ent_maxlon = tk.Entry(master=frm_maxlon)
-lbl_maxlonexample = tk.Label(master=frm_maxlon, text="Ex: -97.7018")
+ent_maxlon.insert(0, "-97.7018")
 
 lbl_maxlon.pack()
 ent_maxlon.pack()
-lbl_maxlonexample.pack()
+# lbl_maxlonexample.pack()
 
 
 
@@ -204,8 +205,7 @@ lbl_colorslabel.pack()
 
 default_colors = {"Fairways":"#85D87E","Tee Boxes":"#85D87E",
 	"Greens":"#A1F29B","Background":"#2CA65E","Trees":"#1C6B3D",
-	"Water":"#BAFBEB","Sand":"#FFEEA1","Text & Labels":"#000000",
-	"Woods":"#1C6B3D"}
+	"Water":"#BAFBEB","Sand":"#FFEEA1","Text & Labels":"#000000"}
 
 color_entries = {}
 
@@ -278,4 +278,4 @@ ent_overwrite.grid(row=3,column=1,padx=5,pady=10)
 
 
 
-window.mainloop()
+root.mainloop()

@@ -41,7 +41,7 @@ def getBoundingBoxLatLon(nodes):
 
 
 
-# function to get the golf holes contained within a given bounding box 
+# function to get the golf holes contained within a given bounding box
 
 def getOSMGolfWays(bottom_lat, left_lon, top_lat, right_lon, printf=print):
 
@@ -49,11 +49,11 @@ def getOSMGolfWays(bottom_lat, left_lon, top_lat, right_lon, printf=print):
 
 	# create the coordinate string for our request - order is South, West, North, East
 	coord_string = str(bottom_lat) + "," + str(left_lon) + "," + str(top_lat) + "," + str(right_lon)
-	
+
 	# use the coordinate string to pull the data through Overpass - golf holes only
 	try:
 		query = "(way['golf'='hole'](" + coord_string + "););out;"
-		return op.query(query) 
+		return op.query(query)
 
 
 	except overpy.exception.OverPyException:
@@ -63,18 +63,18 @@ def getOSMGolfWays(bottom_lat, left_lon, top_lat, right_lon, printf=print):
 # function to get all golf data contained within a given bounding box (e.g. fairways, greens, sand traps, etc)
 
 def getOSMGolfData(bottom_lat, left_lon, top_lat, right_lon, printf=print):
-	
+
 	op = overpy.Overpass() # optional replacement url if servers are busy - url="https://overpass.kumi.systems/api/interpreter"
-	
+
 	# create the coordinate string for our request - order is South, West, North, East
 	coord_string = str(bottom_lat) + "," + str(left_lon) + "," + str(top_lat) + "," + str(right_lon)
-	
+
 	# use the coordinate string to pull the data through Overpass
 	# we want all golf ways, with some additions for woods, trees, and water hazards
 	try:
 		query = "(way['golf'](" + coord_string + ");way['natural'='wood'](" + coord_string + ");node['natural'='tree'](" + coord_string + ");way['landuse'='forest'](" + coord_string + ");way['natural'='water'](" + coord_string + "););out;"
 
-		return op.query(query) 
+		return op.query(query)
 
 	except overpy.exception.OverPyException:
 		printf("OpenStreetMap servers are too busy right now.  Try running this tool later.")
@@ -148,7 +148,7 @@ def getHoleBoundingBox(way, lat_degree_distance, lon_degree_distance):
 # create a blank image of the appropriate size to use in drawing the hole
 
 def generateImage(latmin, lonmin, latmax, lonmax, lat_degree_distance, lon_degree_distance, rough_color):
-	
+
 	lat_distance = (latmax - latmin) * lat_degree_distance
 	lon_distance = (lonmax - lonmin) * lon_degree_distance
 
@@ -166,13 +166,11 @@ def generateImage(latmin, lonmin, latmax, lonmax, lat_degree_distance, lon_degre
 		x_dim = scale
 		y_dim = int((lat_distance / lon_distance) * scale)
 		ypp = lon_distance / scale
-	
+
 
 	im = np.zeros((x_dim, y_dim, 3), np.uint8)
 
-	# Fill image with green background color
-
-	# TODO: move this (and other colors) to a definitions area?
+	# Fill image with background color
 
 	im[:] = rough_color
 
@@ -199,9 +197,9 @@ def getHoleOSMData(way, lat_degree_distance, lon_degree_distance):
 # given a list of coordinates that define a golf hole in OSM, find the green
 
 def identifyGreen(hole_way_nodes, hole_result):
-	
+
 	# if mapped correctly, the last coordinate should mark the center of the green in OSM
-	
+
 	green_center = hole_way_nodes[-1]
 
 	# now search all the data we have for this hole, and filter to find golf greens only
@@ -228,15 +226,15 @@ def identifyGreen(hole_way_nodes, hole_result):
 	# if we couldn't find a green, return an error
 
 	if green_found == False:
-		print("green could not be found")
-		return None			
+		print("Error: green could not be found")
+		return None
 
 
 # convert an OSM way to a numpy array we can use for image processing
 
 def translateWaytoNP(way, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_dim, y_dim):
-
-	print("getting nodes for: ", way.tags.get("golf", None))
+	#
+	# print("getting nodes for: ", way.tags.get("golf", None))
 
 
 	# convert each coordinate's location within the bounding box to a pixel location
@@ -266,7 +264,7 @@ def translateWaytoNP(way, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_
 # convert a list of coordinates to a numpy array we can use for image processing
 
 def translateNodestoNP(nodes, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_dim, y_dim):
-	
+
 	# convert each coordinate's location within the bounding box to a pixel location
 	# ex: if a coordinate is 70% of the way east and 30% of the way north in the bounding box,
 	# we want that point to be 70% from the left and 30% from the bottom of our image
@@ -307,7 +305,7 @@ def categorizeWays(hole_result, hole_minlat, hole_minlon, hole_maxlat, hole_maxl
 
 	for way in hole_result.ways:
 
-		# see how each object was tagged in OSM (and do a little extra categorizing for 
+		# see how each object was tagged in OSM (and do a little extra categorizing for
 		# water hazards and woods)
 
 		golf_type = way.tags.get("golf", None)
@@ -342,7 +340,7 @@ def categorizeWays(hole_result, hole_minlat, hole_minlon, hole_maxlat, hole_maxl
 			# node_list = list(way.get_nodes(resolve_missing=True))
 			# print(node_list)
 			fairways.append(translateWaytoNP(way, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_dim, y_dim))
-		
+
 		elif golf_type == "woods":
 			woods.append(translateWaytoNP(way, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_dim, y_dim))
 
@@ -364,10 +362,8 @@ def categorizeWays(hole_result, hole_minlat, hole_minlon, hole_maxlat, hole_maxl
 	return sand_traps, tee_boxes, fairways, water_hazards, woods, trees
 
 
-# given a numpy array and an image, fill in the array as a polygon on the image (in a given color) 
+# given a numpy array and an image, fill in the array as a polygon on the image (in a given color)
 # also draw an outline if it is specified
-
-# TODO: should be able to remove this
 
 def drawFeature(image, array, color, line=-1):
 
@@ -381,19 +377,12 @@ def drawFeature(image, array, color, line=-1):
 
 
 # for a list of arrays and an image, draw each array as a polygon on the image (in a given color)
-# also draw an outline if it is specified 
 
 def drawFeatures(image, feature_list, color, line=-1):
 
 	for feature_nodes in feature_list:
 
-		nds = np.int32([feature_nodes]) # bug in fillPoly - needs explicit cast to 32bit
-
-		cv2.fillPoly(image, nds, color)
-
-		if line > 0:
-			# need to redraw a line since fillPoly has no line thickness options that I've found
-			cv2.polylines(image, nds, True, (0,0,0), line, lineType=cv2.LINE_AA)
+		drawFeature(image, feature_nodes, color, line=-1)
 
 
 # for a list of tree nodes and an image, draw each tree on the image
@@ -403,7 +392,7 @@ def drawTrees(image, feature_list, color):
 	for feature_nodes in feature_list:
 
 		nds = np.int32([feature_nodes])
-		
+
 		# convert from numpy array back to a list of coordinates (not best-practice)
 		tree = nds.tolist()[0][0]
 
@@ -436,14 +425,10 @@ def drawTrees(image, feature_list, color):
 		cv2.line(image, tl, br, color, thickness=6)
 
 
-# TODO: understand this function
+# when the features were rotated, their coordinates could have been outside our image boundaries
+# so we have to adjust them to be within the boundaries of our new image
 
 def adjustRotatedFeatures(feature_list, ymin, xmin):
-
-	# by default, we have been drawing features in whatever orientation they appear in real life
-	# but what we want is to rotate them so that the hole goes from bottom to top
-	# unfortunately, I don't know of a simple solution to rotate the whole image (except by 90 degrees)
-	# so, we'll have to rotate everything individually
 
 	minx = miny = 10000
 	maxx = maxy = -10000
@@ -502,12 +487,12 @@ def createHoleBoundingBox(rotated_hole_array, ypp):
 
 	# 30 yards to the top (for bunkers or water that are past the green)
 	bb_ymin = org_bb_ymin - (30 / ypp)
-	
+
 	# 10 yards to the bottom (we don't really care about features behind the tee box)
 	bb_ymax = org_bb_ymax + (10 / ypp)
 
 
-	# calculate the width of our hole bounding box, and if it's too wide, trim it down a bit 
+	# calculate the width of our hole bounding box, and if it's too wide, trim it down a bit
 	x_spread = (bb_xmax - bb_xmin) * ypp
 
 	if x_spread > 125:
@@ -523,10 +508,10 @@ def createHoleBoundingBox(rotated_hole_array, ypp):
 		print("Hole bounding box constrained to: ", x_spread, " yards wide")
 
 
-	print("Hole bounding box: ",bb_xmin, bb_ymin, bb_xmax, bb_ymax)
+	# print("Hole bounding box: ",bb_xmin, bb_ymin, bb_xmax, bb_ymax)
 
 	return bb_xmin, bb_ymin, bb_xmax, bb_ymax
-	
+
 
 # take a list of features and filter out anything that is too far from the hole we are drawing right now
 
@@ -569,7 +554,8 @@ def filterArrayList(rotated_hole_array, feature_list, ypp, par, tee_box=0, fairw
 	else:
 		par4plus = 1
 
-	# TODO: figure this out
+	# filtering out any tee boxes that are too close to the green
+	# this helps reduce drawing extra features and carry distances
 	tee_box_filter = tee_box * (90/ypp + par4plus * (140/ypp))
 
 	# optional parameters to control how features are filtered near the tee box
@@ -585,7 +571,7 @@ def filterArrayList(rotated_hole_array, feature_list, ypp, par, tee_box=0, fairw
 		x = float(centroid[0])
 		y = float(centroid[1])
 
-		# filter to see whether the point is within 75 yards 
+		# filter to see whether the point is within 75 yards
 		# of the tee box (near tee) or within 150 yards (short range)
 
 		nearest_tee = ((bb_ymax - y)*ypp < 75)
@@ -605,11 +591,11 @@ def filterArrayList(rotated_hole_array, feature_list, ypp, par, tee_box=0, fairw
 		# let's filter it out
 
 		if y > bb_ymax or y < (bb_ymin + tee_box_filter) or x < bb_xmin or x > bb_xmax:
-			print("Object outside bounding box filtered out")
+			# print("Object outside bounding box filtered out")
 			continue
 
 
-		# we can add another easy check for whether a fairway belongs to the 
+		# we can add another easy check for whether a fairway belongs to the
 		# current hole by seeing if it has any points that go behind the tee box or
 		# past the green - if it does, we'll filter it out
 
@@ -625,7 +611,7 @@ def filterArrayList(rotated_hole_array, feature_list, ypp, par, tee_box=0, fairw
 					minpoint = point
 
 			if maxpoint[1] > bb_ymax or minpoint[1] < bb_ymin:
-				print("Fairway filtered out - points outside of bounding box")
+				# print("Fairway filtered out - points outside of bounding box")
 				continue
 
 
@@ -653,25 +639,25 @@ def filterArrayList(rotated_hole_array, feature_list, ypp, par, tee_box=0, fairw
 
 		# now we are going to filter based on hole width - if something is too far
 		# to the left or right, we'll assume it's from a different hole and filter it out.
-		# (again, there is an option to filter more aggressively near the tee box) 
+		# (again, there is an option to filter more aggressively near the tee box)
 
 		if nearest_tee:
 			if dist_to_way < small:
 				filtered_list.append(array)
-			else:
-				print("Array filtered out:", centroid)
+			# else:
+				# print("Array filtered out:", centroid)
 
 		elif short_range:
 			if dist_to_way < med:
 				filtered_list.append(array)
-			else:
-				print("Array filtered out:", centroid)
+			# else:
+				# print("Array filtered out:", centroid)
 
 		else:
 			if dist_to_way < filter_yards:
 				filtered_list.append(array)
-			else:
-				print("Array filtered out:", centroid)
+			# else:
+				# print("Array filtered out:", centroid)
 
 		# elif mid_range:
 		# 	if x > (bb_xmin + lg/2) and x < (bb_xmax - lg/2) and y > (bb_ymin + tee_box_filter) and y < bb_ymax:
@@ -724,7 +710,7 @@ def getAngle(green_center, other_point):
 	return angle
 
 
-# given a list of the hole coordinates, figure out how much we need to 
+# given a list of the hole coordinates, figure out how much we need to
 # rotate our image in order to display the hole running from bottom to top
 
 def getRotateAngle(hole_way_nodes):
@@ -757,18 +743,18 @@ def getRotateAngle(hole_way_nodes):
 
 	if y > y2 and x > x2:
 		angle = 180 - angle
-		print("green center is lower right of midpoint")
+		# print("green center is lower right of midpoint")
 	elif y > y2 and x < x2:
 		angle = 180 + angle
-		print("green center is lower left of midpoint")
+		# print("green center is lower left of midpoint")
 	elif y < y2 and x < x2:
-		angle = 360 - angle 
-		print("green center is upper left of midpoint")
+		angle = 360 - angle
+		# print("green center is upper left of midpoint")
 	else:
-		print("green center is upper right of midpoint")
+		# print("green center is upper right of midpoint")
 		angle=angle
 
-	print("Angle to be rotated is:", angle)
+	# print("Angle to be rotated is:", angle)
 
 	return angle
 
@@ -806,18 +792,18 @@ def getMidpointAngle(hole_way_nodes):
 
 	if y > y2 and x > x2:
 		angle = 180 - angle
-		print("green center is lower right of midpoint")
+		# print("green center is lower right of midpoint")
 	elif y > y2 and x < x2:
 		angle = 180 + angle
-		print("green center is lower left of midpoint")
+		# print("green center is lower left of midpoint")
 	elif y < y2 and x < x2:
-		angle = 360 - angle 
-		print("green center is upper left of midpoint")
+		angle = 360 - angle
+		# print("green center is upper left of midpoint")
 	else:
-		print("green center is upper right of midpoint")
+		# print("green center is upper right of midpoint")
 		angle=angle
 
-	print("Angle to be rotated is:", angle)
+	# print("Angle to be rotated is:", angle)
 
 	return angle
 
@@ -835,7 +821,7 @@ def Rotate2D(pts,cnt,ang):
 # the hole running from bottom to top
 
 def rotateArray(image, array, angle):
-	
+
 	theta = np.radians(-angle)
 
 	(height, width) = image.shape[:2]
@@ -889,51 +875,11 @@ def getNewImage(image, angle, rough_color):
 
 	new_image = np.zeros((y_dim, x_dim, 3), np.uint8)
 
-	# Fill image with green background color
-	# TODO: adjust color here to be flexible
+	# Fill image with background color
 
 	new_image[:] = rough_color
 
 	return new_image, ymin, xmin, ymax, xmax
-
-
-# take an original image and rotate it so that the hole will be running
-# from bottom to top
-
-def rotateImage(image, angle, rough_color):
-
-	new_image, ymin, xmin, ymax, xmax = getNewImage(image,angle,rough_color)
-
-	(h, w) = image.shape[:2]
-
-	(cX, cY) = (w / 2, h / 2)
-
-	# grab the rotation matrix (applying the negative of the
-	# angle to rotate clockwise), then grab the sine and cosine
-	# (i.e., the rotation components of the matrix)
-
-	M = cv2.getRotationMatrix2D((cX, cY), angle, 1.0)
-	cos = np.abs(M[0, 0])
-	sin = np.abs(M[0, 1])
-
-	# compute the new bounding dimensions of the image
-	nW = int((h * sin) + (w * cos))
-	nH = int((h * cos) + (w * sin))
-
-	# adjust the rotation matrix to take into account translation
-	M[0, 2] += (nW / 2) - cX
-	M[1, 2] += (nH / 2) - cY
-
-	# perform the actual rotation and return the image
-	rotated_image = cv2.warpAffine(image, M, (nW, nH),
-	borderMode=cv2.BORDER_CONSTANT,borderValue=rough_color)
-
-	# return rotated_image
-	# TODO: ???
-
-	return new_image
-
-	
 
 
 # calculate the difstance between two pixels in yards (given a yards per pixel value)
@@ -996,7 +942,7 @@ def drawMarkerPoints(image, marker_point_list, text_size, text_color):
 		cv2.circle(image, (int(point[0]),int(point[1])), int(6.5+text_size), text_color, thickness=-1)
 
 
-# given a point, draw in the carry distances to that point from the 
+# given a point, draw in the carry distances to that point from the
 # back of each tee box (given in tee_box_points)
 
 def drawCarry(image, green_center, carrypoint, tee_box_points, ypp, text_size, text_color, right):
@@ -1006,7 +952,7 @@ def drawCarry(image, green_center, carrypoint, tee_box_points, ypp, text_size, t
 	dist_list = []
 
 	if len(tee_box_points) == 0:
-		print("error occurred: no tee box points found for carries")
+		print("error: no tee box points found for carries")
 		return 0
 
 	for tee in tee_box_points:
@@ -1019,7 +965,7 @@ def drawCarry(image, green_center, carrypoint, tee_box_points, ypp, text_size, t
 	# if it's too close or too far, ignore it
 
 	if maxpoint_distance < 185 or maxpoint_distance > 325:
-		print("carry outside of our reasonable range")
+		# print("carry outside of our reasonable range")
 		return 0
 
 	# count the number of tees
@@ -1032,10 +978,10 @@ def drawCarry(image, green_center, carrypoint, tee_box_points, ypp, text_size, t
 
 	# calculate the total label height
 
-	totalheight = (32 * (tee_num-1) * text_size) 
+	totalheight = (32 * (tee_num-1) * text_size)
 
 	# declare x and y coordinates to place the text
-	
+
 	if right:
 		x = int(carrypoint[0] + (10 * (text_size + 0.1)) + 5)
 	else:
@@ -1067,13 +1013,13 @@ def drawCarry(image, green_center, carrypoint, tee_box_points, ypp, text_size, t
 
 	if dtg < 40 or maxpoint_distance < 215 or maxpoint_distance > 290:
 
-		print("still need a carry to reasonable fairway point",dtg,maxpoint_distance)
+		# print("still need a carry to reasonable fairway point",dtg,maxpoint_distance)
 
 		return 0
 
 	else:
 
-		print("confirmed reasonable carry")
+		# print("confirmed reasonable carry")
 
 		return 1
 
@@ -1191,7 +1137,7 @@ def drawCarryDistances(image, adjusted_hole_array, tee_box_list, carry_feature_l
 		if dist_to_way > filter_dist:
 			continue
 
-		
+
 		# y = mx + b    y = carry[1]   x = (carry[1] - b) / slope
 
 		comp_value = (carry[1] - intercept) / slope
@@ -1248,7 +1194,7 @@ def drawExtraCarries(image, adjusted_hole_array, tee_boxes, right_carries, left_
 		slope, intercept = getLine(midpoint,hole_origin)
 
 	base_x = (y - intercept) / slope
-	
+
 	if midpoint[0] < green_center[0]:
 		# draw on left
 
@@ -1315,7 +1261,7 @@ def getPointOnOtherLine(origin_point, midpoint, green_center, distance, ypp):
 
 		return None
 
-	
+
 	x_int = (b*-1 + math.sqrt(b**2 - 4*a*c)) / (2*a)
 	y_int = -1 * ((A*x_int + C) / B)
 
@@ -1347,7 +1293,7 @@ def drawFarGreenDistances(image, adjusted_hole_array, ypp, draw_dist, text_size,
 	hole_length_limit = ((dist.euclidean(hole_origin,midpoint) + dist.euclidean(midpoint,green_center)) * ypp) - 200
 
 	hole_length_limit = max(hole_length_limit, ((dist.euclidean(hole_origin,midpoint) + dist.euclidean(midpoint,green_center)) * ypp)*0.6)
-	
+
 	midpoint_dist = dist.euclidean(green_center,midpoint) * ypp
 
 	hole_length_limit = max(midpoint_dist, hole_length_limit)
@@ -1383,7 +1329,7 @@ def drawFarGreenDistances(image, adjusted_hole_array, ypp, draw_dist, text_size,
 
 
 	# once the distance we are drawing is farther than the distance to the hole's
-	# midpoint, we have to switch to drawing on the line between the origin and the 
+	# midpoint, we have to switch to drawing on the line between the origin and the
 	# midpoint
 
 	while draw_dist < hole_length_limit:
@@ -1423,7 +1369,7 @@ def drawGreenDistancesAnyWaypoint(image, adjusted_hole_array, ypp, draw_dist, te
 
 	elif len(hole_points) == 4:
 
-		print("found four hole waypoints - using new method")
+		# print("found four hole waypoints - using new method")
 
 		angle_dict = {50:30,100:15.2,150:9.8,200:7.5,250:6,300:5,350:4.6}
 
@@ -1437,15 +1383,15 @@ def drawGreenDistancesAnyWaypoint(image, adjusted_hole_array, ypp, draw_dist, te
 
 		second_midpoint = hole_points[2]
 
-		hole_length_limit = ((dist.euclidean(hole_origin,first_midpoint) + 
-			dist.euclidean(first_midpoint, second_midpoint) + 
+		hole_length_limit = ((dist.euclidean(hole_origin,first_midpoint) +
+			dist.euclidean(first_midpoint, second_midpoint) +
 			dist.euclidean(second_midpoint,green_center)) * ypp) - 200
 
-		hole_length_limit = max(hole_length_limit, 
-			((dist.euclidean(hole_origin,first_midpoint) + 
-				dist.euclidean(first_midpoint, second_midpoint) + 
+		hole_length_limit = max(hole_length_limit,
+			((dist.euclidean(hole_origin,first_midpoint) +
+				dist.euclidean(first_midpoint, second_midpoint) +
 				dist.euclidean(second_midpoint,green_center)) * ypp)*0.6)
-		
+
 		second_midpoint_dist = dist.euclidean(green_center,second_midpoint) * ypp
 
 		first_midpoint_dist = dist.euclidean(green_center,first_midpoint) * ypp
@@ -1530,8 +1476,8 @@ def drawGreenDistancesAnyWaypoint(image, adjusted_hole_array, ypp, draw_dist, te
 
 			draw_dist += 50
 
-	else: 
-		print("more than 4 hole waypoints found - can't draw distances")
+	else:
+		print("error: more than 4 hole waypoints found")
 		return None
 
 
@@ -1578,7 +1524,7 @@ def drawGreenDistancesMin(image, adjusted_hole_array, feature_list, ypp, text_si
 		if distance < 40 or distance > 305:
 			continue
 
-		if par_3_tees == 0: 
+		if par_3_tees == 0:
 			if distance > (0.75*hole_distance):
 				continue
 
@@ -1638,7 +1584,7 @@ def drawGreenDistancesTree(image, adjusted_hole_array, tree_list, ypp, text_size
 		if distance < 40:
 			continue
 
-		if par_3_tees == 0: 
+		if par_3_tees == 0:
 			if distance > (0.75*hole_distance):
 				continue
 
@@ -1669,7 +1615,7 @@ def drawGreenDistancesTree(image, adjusted_hole_array, tree_list, ypp, text_size
 
 
 		right = True
-		
+
 		# y = mx + b    y = carry[1]   x = (carry[1] - b) / slope
 
 		comp_value = (point[1] - intercept) / slope
@@ -1752,7 +1698,7 @@ def getGreenGrid(b_w_image, adjusted_hole_array, ypp):
 	xmin = int(x - (30/ypp))
 	xmax = int(x + (30/ypp))
 	ymin = int(y - (30/ypp))
-	ymax = int(y + (39/ypp)) 
+	ymax = int(y + (39/ypp))
 
 
 	start = (x - int(0.5/ypp),y + int(0.5/ypp))
@@ -1827,16 +1773,13 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 	ways = result.ways
 
 
-	# find or create output directory 
+	# find or create output directory
 	# and get a list of existing files so we don't overwrite unintentionally
-
-
-	# TODO: make this happen for greens directory as well
 
 	try:
 		file_list = os.listdir("output")
 	except:
-		os.makedir("output")
+		os.mkdir("output")
 		file_list = []
 
 	# track the holes we are doing today
@@ -1845,7 +1788,7 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 
 
 
-	# for each hole in our data: 
+	# for each hole in our data:
 
 	for way in ways:
 
@@ -1859,13 +1802,13 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 		print("Hole",hole_num,"Par",hole_par)
 
 		if hole_num == None:
-			print("Hole number missing: skipping hole")
+			print("Error: Hole number missing: skipping hole")
 			continue
 
 		try:
 			hole_par = int(hole_par)
 		except:
-			print("Par missing: skipping hole")
+			print("Error: Hole par missing: skipping hole")
 			continue
 
 
@@ -1873,25 +1816,23 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 
 		file_name = "hole_" + str(hole_num) + ".png"
 
-		print(file_name)
-
 		if not replace_existing and file_name in file_list:
 			print("Output file exists: skipping hole")
 			continue
 
 
 		if file_name in new_file_list:
-			print("conflict found")
+			print("Output conflict found")
 			counter = 2
 
 			while file_name in new_file_list:
 				file_name = "hole_" + str(hole_num) + "_" + str(counter) + ".png"
 				print(file_name)
 				counter += 1
-		else:
-			print("no conflict found")
+		# else:
+			# print("no conflict found")
 
-		
+
 		new_file_list.append(file_name)
 
 
@@ -1947,7 +1888,7 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 		rotated_image, ymin, xmin, ymax, xmax = getNewImage(image,angle,colors["rough"])
 
 
-		# we need to adjust all our rotated features TODO understand this
+		# we need to adjust all our rotated features
 		final_fairways, fw_minx, fw_miny, fw_maxx, fw_maxy = adjustRotatedFeatures(filtered_fairways, ymin, xmin)
 		final_tee_boxes, tb_minx, tb_miny, tb_maxx, tb_maxy = adjustRotatedFeatures(filtered_tee_boxes, ymin, xmin)
 		final_water_hazards, n1, n2, n3, n4 = adjustRotatedFeatures(filtered_water_hazards, ymin, xmin)
@@ -1962,7 +1903,7 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 		adjusted_hole_array, n1, n2, n3, n4 = adjustRotatedFeatures([rotated_waypoints], ymin, xmin)
 
 		# finally, we can draw all of the features on our image (with specific colors for each)
-		# TODO: make it easier to change the colors
+
 		drawFeatures(rotated_image, final_fairways, colors["fairways"])
 		drawFeatures(rotated_image, final_tee_boxes, colors["tee boxes"])
 		drawFeatures(rotated_image, final_water_hazards, colors["water"])
@@ -1975,7 +1916,7 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 
 
 		# now we need to pad or crop the image to get a consistent aspect ratio
-		# TODO: make this all in functions
+		# future TODO: clean this all up into functions, see about making aspect ratio adjustable
 		lower_bound_x = min(fw_minx, tb_minx, g_minx, st_minx) - (20/ypp) - xmin
 		lower_bound_y = min(fw_miny, tb_miny, g_miny, st_miny) - (5/ypp) - ymin - 100
 		upper_bound_x = max(fw_maxx, tb_maxx, g_maxx, st_maxx) + (20/ypp) - xmin + 100
@@ -1991,7 +1932,7 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 
 		# cv2.rectangle(rotated_image, start, end, (0,0,255), 2)
 
-		
+
 		height = upper_bound_y - lower_bound_y
 		width = upper_bound_x - lower_bound_x
 
@@ -2030,7 +1971,7 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 
 
 		# adjusting the font size to vary based on how tall the image is in pixels
-		# this way, the lettering will look consistent across holes, even if one is 
+		# this way, the lettering will look consistent across holes, even if one is
 		# 500 yards and one is 100 yards (this used to be a problem)
 
 		text_size = 1.5/3000*eventual_height
@@ -2094,7 +2035,7 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 			bottom_y_pad = int((new_height - height) / 2)
 
 		padded_image = cv2.copyMakeBorder(cropped_image,top_y_pad,bottom_y_pad,left_x_pad,right_x_pad, cv2.BORDER_CONSTANT, value=(94, 166, 44))
-			
+
 
 		# save the image file to the output folder
 		cv2.imwrite(("output/" + file_name), padded_image)
@@ -2103,6 +2044,14 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 
 
 		# now, we need to make the green image for this hole
+		print('creating green grid')
+
+		try:
+			green_list = os.listdir("greens")
+		except:
+			os.mkdir("greens")
+			green_list = []
+
 
 		# this time, we want to rotate the green (and everythign else) to be aligned front to back
 		angle = getMidpointAngle(translateNodestoNP(hole_way_nodes,hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_dim, y_dim))
@@ -2159,7 +2108,7 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 		drawFeatures(bw_green_image, final_green_array, (255, 255, 255),line=2)
 		drawFeatures(bw_green_image, final_sand_traps, (210,210,210))
 
-		# we also want to overlay a 3-yard grid to show how large the green is 
+		# we also want to overlay a 3-yard grid to show how large the green is
 		# and to make it easier to figure out carry distances to greenside bunkers
 		green_grid = getGreenGrid(bw_green_image, adjusted_hole_array,ypp)
 
