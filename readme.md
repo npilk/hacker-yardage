@@ -45,13 +45,13 @@ Then, take the coordinates from OpenStreetMaps and enter them into the Hacker Ya
 
 ![Hacker Yardage tool with coordinates entered](docs/images/tool_filled.png)
 
-(If you're using the test coordinates, just type them into the boxes and move on to Step 4.)
+Again, if you want to use the test coordinates, they're pre-filled in the tool - you can just move on to Step 4.
 
 
 
 #### Step 4: adjust custom options (if desired)
 
-Hacker Yardage lets you customize many parts of the mapping process:
+Hacker Yardage lets you customize many parts of the yardage books you create:
 
 * To change the color of any of the features, replace the hex values on the left side of the screen.
 
@@ -71,7 +71,7 @@ Images will be generated and saved to the ```output``` folder. The image for the
 
 You should have 18 images in the ```output``` folder, one for each hole, with some automatically generated yardages! Here's a guide to reading the output:
 
-![A quick guide to reading the yardage book](docs/images/howtoread.png)
+![A guide to reading the yardage book](docs/images/howtoread.png)
 
 
 #### Step 6: fine-tune your results
@@ -104,7 +104,7 @@ Once you've got all the imagery generated, you'll probably want to print out a y
 
 To use the templates, print double-sided on legal size paper, with the pages set to *flip on the short edge*. If you don't have access to a printer that can print on legal paper, any print store should be able to do it for you.
 
-Next, cut the printed pages in half, using a paper cutter or a straight edge and a utility knife. There are some small marks printed on each page to guide you. Cutting all the pages at once will give the best results, but may be more difficult.
+Next, cut the printed pages in half, using either a paper cutter or a straight edge and a utility knife. There are some small marks printed on each page to guide you. Cutting all the pages at once will give the best results, but may be more difficult.
 
 Finally, arrange the strips so that the pages will be in proper order. Fold the book in half using a straight edge, and staple at the seam to make a book! (Tip: I leave my printed books under something heavy for an hour or two to get them flattened out.)
 
