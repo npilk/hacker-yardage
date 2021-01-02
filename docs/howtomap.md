@@ -18,23 +18,23 @@ You can use the search function on OpenStreetMap, but not every course will show
 
 To get started, click the ```Edit``` button in OSM. You'll see satellite imagery come up to help you with the mapping. Navigate to the first hole of your course:
 
-![Satellite image of hole](docs/images/satellite.png)
+![Satellite image of hole](images/satellite.png)
 
 To add waypoints for a hole, click on the ```Line``` button at the top of the screen:
 
-![Line button in OSM](docs/images/line.png)
+![Line button in OSM](images/line.png)
 
 Place your first point on the hole's furthest back tee box (the "tips"). *(Order matters - you must enter these points from tee to green.)*
 
-![Tee box point](docs/images/first_point.png)
+![Tee box point](images/first_point.png)
 
 For doglegs, you can place an intermediate point (or two) to define the hole's route. (Don't add more than 4 points per hole. It's fine to use just 2 points for par 3s and straight par 4s.)
 
-![Dogleg point](docs/images/second_point.png)
+![Dogleg point](images/second_point.png)
 
 Next, place your last point in the center of the green. *(This point is where all distances will be measured to in your yardage book - place it where you think the 'center of the green' should be.)*
 
-![Center of the green point](docs/images/third_point.png)
+![Center of the green point](images/third_point.png)
 
 Finally, now that you've created the waypoints for this hole, we need to add some overview information. First, select "Golf Hole" as the feature type:
 
@@ -42,7 +42,7 @@ Finally, now that you've created the waypoints for this hole, we need to add som
 
 Next, enter the hole's number and par on the left side of the screen. You can also add an optional description, but it's not required.
 
-![Hole information](docs/images/hole_info.png)
+![Hole information](images/hole_info.png)
 
 That's it! You're done mapping the hole's waypoints.
 
@@ -50,15 +50,15 @@ That's it! You're done mapping the hole's waypoints.
 
 Once you've defined where the hole is, you can add in the features you want to map. To do this, first click the ```Area``` button at the top of the screen in OSM:
 
-![Area button in OSM](docs/images/area.png)
+![Area button in OSM](images/area.png)
 
 Next, draw a polygon around the feature you want to map:
 
-![Tee box mapped](docs/images/tee_box.png)
+![Tee box mapped](images/tee_box.png)
 
 Finally, add the necessary information on the left side of the screen - this will make sure the tool knows what type of feature this is. In this case, we'll select Tee Box, but you should select the appropriate category for the feature you mapped.
 
-![Detailed information for the tee box](docs/images/tee_box_info.png)
+![Detailed information for the tee box](images/tee_box_info.png)
 
 *Note: many courses will already have some features like fairways mapped. This is great because it saves time! Just remember to double check that these features have the proper information filled out (e.g. that the feature type is Golf - Fairway, or whatever is appropriate).*
 
@@ -66,16 +66,16 @@ Finally, add the necessary information on the left side of the screen - this wil
 
 To add other features, click ```Area``` and map them just as described above. In order for the tool to recognize a water hazard, you should categorize it as Natural - Water:
 
-![Water hazard information](docs/images/water.png)
+![Water hazard information](images/water.png)
 
 If you want to map woods so that they will show up in your yardage book, you can map them and categorize them as Natural - Wood:
 
-![Wood information](docs/images/woods.png)
+![Wood information](images/woods.png)
 
 Finally, if you want to map an individual tree - one that is in the fairway, for example - click ```Point``` in OSM and mark the tree with a point. Then, categorize it as Natural - Tree:
 
-![Point button in OSM](docs/images/point.png)
-![Tree mapped](docs/images/tree.png)
+![Point button in OSM](images/point.png)
+![Tree mapped](images/tree.png)
 
 #### Step 4: Save changes
 
