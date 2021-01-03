@@ -38,7 +38,7 @@ Next, place your last point in the center of the green. *(This point is where al
 
 Finally, now that you've created the waypoints for this hole, we need to add some overview information. First, select "Golf Hole" as the feature type:
 
-/ADD IMAGE
+![Search for golf hole and select that as the feature type](images/hole_feature_type.png)
 
 Next, enter the hole's number and par on the left side of the screen. You can also add an optional description, but it's not required.
 
