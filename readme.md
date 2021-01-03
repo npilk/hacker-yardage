@@ -98,20 +98,28 @@ Finally, click the ```Generate Yardages``` button one more time. The tool will s
 
 ## Printing
 
-#### Templates
+#### Using the provided Keynote templates
 
-Once you've got all the imagery generated, you'll probably want to print out a yardage book. To get you started, I've included some templates you can use with legal paper (14" x 11"). These can be found in the ```templates``` folder for both PowerPoint and Keynote.
+Once you've got all the imagery generated, you'll probably want to print out a yardage book. To get you started, I've included some Keynote templates you can use with legal paper (14" x 11") if you run macOS. These can be found in the ```templates``` folder. (Unfortunately, I don't have access to Windows or Microsoft Office - if you would like to contribute PowerPoint versions of these or other templates, please let me know.)
 
-To use the templates, print double-sided on legal size paper, with the pages set to *flip on the short edge*. If you don't have access to a printer that can print on legal paper, any print store should be able to do it for you.
+To use the templates, first, make a copy of the template file you want to use. The standard version of the template prints enough for two yardage books (for example, ```legal_template_4tees.key```). I recommend this, because if your cuts aren't even, you can keep the better book for yourself - and if you end up with two good books, you can give one to a friend. But if you're very confident in your cutting skills and want to save the paper, there are also versions of the template which will print only enough for one yardage book (for example, ```legal_template_single_4tees.key```).
 
-Next, cut the printed pages in half, using either a paper cutter or a straight edge and a utility knife. There are some small marks printed on each page to guide you. Cutting all the pages at once will give the best results, but may be more difficult.
-
-Finally, arrange the strips so that the pages will be in proper order. Fold the book in half using a straight edge, and staple at the seam to make a book! (Tip: I leave my printed books under something heavy for an hour or two to get them flattened out.)
+Next, you'll need to update the copy you have made with the correct images and information for each hole.
 
 #### Automatically fill the Keynote template on macOS
 
-If you use macOS like me, I've also included an AppleScript that will automatically put the generated images into the Keynote template. You'll still have to go through and fill in the information for each hole, but it should save some time.
+If you're using the Keynote templates, I've also included an AppleScript that will automatically put your generated images and green insets into the Keynote template.
 
-To use the script, open up ```templates/Keynote (macOS)/autofill-template.scpt``` and click Run. Select the folders where your hole image files and green image files are, and then choose the template file you want to edit.
+To use the script, open up ```templates/Keynote (macOS)/autofill-template.scpt``` (or ```single-autofill.scpt``` if you're using a single template) and click Run. Select the folders where your hole image files and green image files are, and then choose the template file you want to edit. Once you've done that, the template should auto-populate with all the hole and green images.
 
-Unfortunately I haven't written a macro to do this for the PowerPoint templates - if you want to contribute one, please let me know!
+When all the images have populated, don't forget to go through and fill in the yardage, par, and handicap for each hole manually.
+
+#### Printing the templates
+
+Once you've finished updating the template with all the relevant information for your course, export it to PDF for printing (```File > Export To > PDF```). If you want to print a cover, you can also update the cover template (```cover_template.key```) and export that to PDF as well.
+
+Print your PDF double-sided on legal size paper, with the pages set to *flip on the short edge*. If you don't have access to a printer that can print on legal paper, any print store should be able to do it for you.
+
+Next, cut the printed pages in half lengthwise, using either a paper cutter or a straight edge and a utility knife. There are some small marks printed on each page to guide you. If you want a more attractive book, you can also trim off the margins. Cutting all the pages at once will give the best results, but may be more difficult.
+
+Finally, arrange the strips so that the pages will be in proper order. Fold the book in half using a straight edge, and staple at the fold to make a book! (I leave my printed books under something heavy for an hour or two to get them flattened out.)

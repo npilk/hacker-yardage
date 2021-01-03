@@ -48,7 +48,7 @@ That's it! You're done mapping the hole's waypoints.
 
 #### Step 2: Add hole features (fairway, green, tee boxes, sand traps)
 
-Once you've defined where the hole is, you can add in the features you want to map. To do this, first click the ```Area``` button at the top of the screen in OSM:
+Once you've defined where the hole is, you can add in the features you want to have drawn in your yardage book - like the fairway, the green, sand traps, etc. To do this, first click the ```Area``` button at the top of the screen in OSM:
 
 ![Area button in OSM](images/area.png)
 
@@ -56,11 +56,9 @@ Next, draw a polygon around the feature you want to map:
 
 ![Tee box mapped](images/tee_box.png)
 
-Finally, add the necessary information on the left side of the screen - this will make sure the tool knows what type of feature this is. In this case, we'll select Tee Box, but you should select the appropriate category for the feature you mapped.
+Finally, add the necessary information on the left side of the screen (see above at left). This will make sure the tool knows what type of feature this is. In this case, we've selected Tee Box, but you should select the appropriate category for the feature you mapped.
 
-![Detailed information for the tee box](images/tee_box_info.png)
-
-*Note: many courses will already have some features like fairways mapped. This is great because it saves time! Just remember to double check that these features have the proper information filled out (e.g. that the feature type is Golf - Fairway, or whatever is appropriate).*
+*Note: many courses will already have bigger features like fairways and water hazards mapped. This is great because it saves time! Just remember to double check that these features have the proper information filled out (e.g. that the feature type is Golf - Fairway, or whatever is appropriate).*
 
 #### Step 3: Add additional features (water hazards, trees, woods)
 
@@ -85,4 +83,4 @@ When you're done making changes, press the ```Save``` button in the upper right 
 
 That's all there is to it! Once you've gotten the hang of it, you should be able to map courses fairly quickly - an 18-hole course usually takes me less than an hour while watching TV, and even less if some of the features have already been mapped. Just remember to define the waypoints of every hole properly - this is what the Hacker Yardage tool will use to determine exactly what to map.
 
-Once you're done mapping the course, you can follow the steps in the [readme](readme.md) to generate a yardage book using the Hacker Yardage tool.
+Once you're done mapping the course, you can follow the steps in the [readme](readme.md) to generate a yardage book using the Hacker Yardage tool. **Please note:** it may take a few hours for your changes to be reflected in the data pulled by the Hacker Yardage tool. So if you map a course and then immediately try to generate a yardage book, some of the features may be missing. If this happens, simply wait a few hours (or maybe overnight) and then try again.
