@@ -56,7 +56,7 @@ Next, draw a polygon around the feature you want to map:
 
 ![Tee box mapped](images/tee_box.png)
 
-Finally, add the necessary information on the left side of the screen (see above at left). This will make sure the tool knows what type of feature this is. In this case, we've selected Tee Box, but you should select the appropriate category for the feature you mapped.
+Finally, add the necessary information on the left side of the screen (see above at left). This will make sure the tool knows what type of feature this is. In this case, we've selected Tee Box, but you should select the appropriate feature for the feature you mapped (e.g. Fairway, Green, Bunker, etc).
 
 *Note: many courses will already have bigger features like fairways and water hazards mapped. This is great because it saves time! Just remember to double check that these features have the proper information filled out (e.g. that the feature type is Golf - Fairway, or whatever is appropriate).*
 
