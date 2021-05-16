@@ -115,9 +115,9 @@ def run_program():
 btn_confirm = tk.Button(text="Generate Yardages",master=frm_button, command=run_program, width=20)
 btn_confirm.pack()
 
-link1 = tk.Label(master=frm_button, text="Support Hacker Yardage by checking out the merch at Store Brand Golf (www.storebrand.golf)", fg="blue")
+link1 = tk.Label(master=frm_button, text="Support Hacker Yardage by buying me a coffee", fg="blue")
 link1.pack(pady=10)
-link1.bind("<Button-1>", lambda e: callback("https://www.storebrand.golf"))
+link1.bind("<Button-1>", lambda e: callback("https://www.buymeacoffee.com/elementninety3"))
 
 
 
