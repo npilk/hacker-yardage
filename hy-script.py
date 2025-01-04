@@ -1,6 +1,5 @@
-
 # hacker yardage
-# see readme for instructions on mapping a course in OSM
+# see readme.md for instructions on how to map a course in OpenStreetMap
 
 
 # import all the formulas we need
@@ -8,14 +7,15 @@
 from hyformulas import *
 
 import os
+from datetime import datetime
 
 
 # Enter bounding box coordinates from OSM here:
 
-latmin = 30.2286     # minimum latitude
-lonmin = -97.7114    # minimum longitude
-latmax = 30.2448     # maximum latitude
-lonmax = -97.7018    # maximum longitude
+latmin = 30.2286     # minimum latitude (south)
+lonmin = -97.7114    # minimum longitude (west)
+latmax = 30.2448     # maximum latitude (north)
+lonmax = -97.7018    # maximum longitude (east)
 
 
 # do you want to replace existing output files? default is False
@@ -29,7 +29,7 @@ replace_existing = False
 fairway_color = '#85d87e'
 tee_box_color = '#85d87e'
 green_color = '#a1f29b'
-rough_color = '#2ca65e'
+rough_color = '#2ca65e' # this is the overall background color
 tree_color = '#1c6b3d'
 water_color = '#bafbeb'
 sand_color = '#ffeea1'
@@ -41,14 +41,14 @@ text_color = '#000000'
 # (objects that are more than this number of yards
 # from the center line will be filtered out)
 
-hole_width = 50 #yards
+hole_width = 100 # in yards
 
 
 # do you want to filter more aggressively near the tees?
 # (this can help ignore random bunkers, etc.)
 # enter a fraction
 
-short_filter = 1.0
+short_filter = 1.5
 
 
 
@@ -66,8 +66,18 @@ colors = {"fairways":hexToBGR(fairway_color),"tee boxes":hexToBGR(tee_box_color)
 med_filter = (short_filter + 1) / 2
 
 
+# toggle for whether or not to include individual trees in the yardage book
+
+include_trees = True
+
+
+# toggle for showing distances in meters instead of yards
+
+in_meters = False
+
 
 # generate the yardage book
 
 if __name__ == "__main__":
-    book = generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=hole_width,short_factor=short_filter,med_factor=med_filter)
+    print('start: ', datetime.now().time())
+    book = generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=hole_width,short_factor=short_filter,med_factor=med_filter,include_trees=include_trees,in_meters=in_meters)

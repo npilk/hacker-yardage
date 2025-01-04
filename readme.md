@@ -2,9 +2,16 @@
 
 Thanks for checking out Hacker Yardage! I built this tool because I wanted to make yardage books for some of my favorite golf courses, but it took way too long to draw out each hole and measure all the distances I cared about. Hacker Yardage should make it easy for anyone to create yardage books - see below for step-by-step instructions.
 
-If you use and like the tool, I'd appreciate your support by [buying me a coffee](https://www.buymeacoffee.com/elementninety3).
+If you use and like the tool, I'd appreciate your support by [buying me a coffee](https://www.buymeacoffee.com/npilk).
 
 This project wouldn't be possible without OpenStreetMap - please support them as well.
+
+## Release Notes
+
+**Jan 2025 - Version 0.2**
+* Added a toggle to calculate distances in meters
+* Added a toggle for whether to map individual trees
+* Various bug fixes
 
 ## Instructions
 

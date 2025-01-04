@@ -88,15 +88,19 @@ def run_program():
 
 	med_scale = (small_scale + 1) / 2
 
+	include_trees = include_trees_var.get()
+
+	in_meters = in_meters_var.get()
+
 	# generate the yardage book
 
 	try:
 
 		loading = loadingWindow()
 
-		time.sleep(1)
+		time.sleep(2)
 
-		book = generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=hole_width,short_factor=small_scale,med_factor=med_scale)
+		book = generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=hole_width,short_factor=small_scale,med_factor=med_scale, include_trees=include_trees, in_meters=in_meters)
 
 		loading.destroy()
 
@@ -117,11 +121,11 @@ btn_confirm.pack()
 
 link1 = tk.Label(master=frm_button, text="Support Hacker Yardage by buying me a coffee", fg="blue")
 link1.pack(pady=10)
-link1.bind("<Button-1>", lambda e: callback("https://www.buymeacoffee.com/elementninety3"))
+link1.bind("<Button-1>", lambda e: callback("https://www.buymeacoffee.com/npilk"))
 
 
 
-lbl_coords = tk.Label(master=frm_title, text="Enter the coordinates from OSM for your course:")
+lbl_coords = tk.Label(master=frm_title, text="Enter the coordinates from OpenStreetMap for your course:")
 lbl_coords.grid(row=0, column=0, sticky="w")
 
 
@@ -273,9 +277,25 @@ frm_sm_scale.grid(row=2, column=1, padx=5, pady=5)
 
 overwrite_var = tk.IntVar()
 
-ent_overwrite = tk.Checkbutton(master=frm_others, text="Overwrite existing files?", variable=overwrite_var)
+ent_overwrite = tk.Checkbutton(master=frm_others, text="Overwrite existing output files", variable=overwrite_var)
 ent_overwrite.grid(row=3,column=1,padx=5,pady=10)
 
+
+
+include_trees_var = tk.IntVar()
+
+ent_include_trees = tk.Checkbutton(master=frm_others, text="Include individual trees", variable=include_trees_var)
+ent_include_trees.select()
+
+ent_include_trees.grid(row=4, column=1, padx=5, pady=5)
+
+
+
+in_meters_var = tk.IntVar()
+
+ent_in_meters = tk.Checkbutton(master=frm_others, text="Show distances in meters", variable=in_meters_var)
+
+ent_in_meters.grid(row=5, column=1, padx=5, pady=5)
 
 
 root.mainloop()
