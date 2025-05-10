@@ -26,8 +26,8 @@ replace_existing = False
 
 # colors for each feature can be customized here
 
-fairway_color = '#85d87e'
-tee_box_color = '#85d87e'
+fairway_color = '#67f072'
+tee_box_color = '#67f072'
 green_color = '#a1f29b'
 rough_color = '#2ca65e' # this is the overall background color
 tree_color = '#1c6b3d'

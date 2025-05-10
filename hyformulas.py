@@ -54,7 +54,7 @@ def getOSMGolfWays(bottom_lat, left_lon, top_lat, right_lon, printf=print):
  
     try:
     
-        print('Getting golf ways: ', datetime.now().time())
+        # print('Getting golf ways: ', datetime.now().time())
         
         query = "(way['golf'='hole'](" + coord_string + "););out;"
 
@@ -75,15 +75,20 @@ def getOSMGolfData(bottom_lat, left_lon, top_lat, right_lon, printf=print):
 
     # create the coordinate string for our request - order is South, West, North, East
     coord_string = str(bottom_lat) + "," + str(left_lon) + "," + str(top_lat) + "," + str(right_lon)
+    
 
     # use the coordinate string to pull the data through Overpass
     # we want all golf ways, with some additions for woods, trees, and water hazards
 
     try:
-        query = "(way['golf'](" + coord_string + ");way['natural'='wood'](" + coord_string + ");node['natural'='tree'](" + coord_string + ");way['landuse'='forest'](" + coord_string + ");way['natural'='water'](" + coord_string + "););out;"
-        print('Getting golf data nodes for hole: ', datetime.now().time())
+        query = "(way['golf'](" + coord_string + ");way['natural'='wood'](" + coord_string + ");node['natural'='tree'](" + coord_string + ");way['landuse'='forest'](" + coord_string + ");way['natural'='water'](" + coord_string + ");relation['golf'='fairway'](" + coord_string + "););out;"
+        # print('Query: ', query)
+
+        # print('Getting golf data nodes for hole: ', datetime.now().time())
         data = op.query(query)
-        print('Query complete: ', datetime.now().time())
+        # print('Query complete: ', datetime.now().time())
+        # print(data)
+
         return data
     
     except overpy.exception.OverPyException:
@@ -135,7 +140,7 @@ def getLonDegreeDistance(bottom_lat, top_lat): # length of longitude depends on 
 def getHoleBoundingBox(way, lat_degree_distance, lon_degree_distance):
 
     # get the bounding lat and lon of this particular hole
-    print('Getting bounding box for the hole: ', datetime.now().time())
+    # print('Getting bounding box for the hole: ', datetime.now().time())
     
     hole_way_nodes = way.get_nodes(resolve_missing=True)
     
@@ -224,7 +229,7 @@ def identifyGreen(hole_way_nodes, hole_result):
         
         if way.tags.get("golf", None) == "green":
 
-            print('Identifying green center: ', datetime.now().time())
+            # print('Identifying green center: ', datetime.now().time())
 
             green_nodes = way.get_nodes(resolve_missing=True)
 
@@ -255,13 +260,14 @@ def translateWaytoNP(way, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_
     # ex: if a coordinate is 70% of the way east and 30% of the way north in the bounding box,
     # we want that point to be 70% from the left and 30% from the bottom of our image
     
-    print('Converting hole coordinates to numpy array: ', datetime.now().time())
+    # print('Converting hole coordinates to numpy array: ', datetime.now().time())
     
     try:
         node_list = way.nodes
-        print('used cache')
+        # print('used cache')
+
     except overpy.exception.DataIncomplete:
-        print('no cache available')
+        # print('no cache available')
         node_list = way.get_nodes(resolve_missing=True)
 
     nds = []
@@ -288,7 +294,7 @@ def translateWaytoNP(way, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_
 
 def translateNodestoNP(nodes, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_dim, y_dim):
 
-    print('Converting nodes to numpy array: ', datetime.now().time())
+    # print('Converting nodes to numpy array: ', datetime.now().time())
     
     # convert each coordinate's location within the bounding box to a pixel location
     # ex: if a coordinate is 70% of the way east and 30% of the way north in the bounding box,
@@ -326,7 +332,7 @@ def categorizeWays(hole_result, hole_minlat, hole_minlon, hole_maxlat, hole_maxl
     woods = []
     trees = []
 
-    print('Categorizing ways for hole: ', datetime.now().time())
+    # print('Categorizing ways for hole: ', datetime.now().time())
 
     for way in hole_result.ways:
 
@@ -365,6 +371,7 @@ def categorizeWays(hole_result, hole_minlat, hole_minlon, hole_maxlat, hole_maxl
             # node_list = list(way.get_nodes(resolve_missing=True))
             # print(node_list)
             fairways.append(translateWaytoNP(way, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_dim, y_dim))
+            # print("fairway found")
 
         elif golf_type == "woods":
             woods.append(translateWaytoNP(way, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_dim, y_dim))
@@ -372,6 +379,27 @@ def categorizeWays(hole_result, hole_minlat, hole_minlon, hole_maxlat, hole_maxl
         else:
             continue
 
+        
+    # some fairways are mapped as relations
+
+    for relation in hole_result.relations:
+        if relation.tags.get("golf", None) == "fairway":
+
+            # the relation is a list of ways, so we need to get the nodes for the outer way
+            # print(relation.members)
+
+            for relation_way in relation.members:
+
+                # print(relation_way)
+
+                if relation_way.role == "outer":
+                    
+                    way_id = int(relation_way.ref)
+
+                    way = hole_result.get_way(way_id, resolve_missing=True)
+
+                    fairways.append(translateWaytoNP(way, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_dim, y_dim))
+                    # print("fairway found")
 
     # the only feature we care about that would show up as a node would be a tree
 
@@ -405,7 +433,7 @@ def drawFeature(image, array, color, line=-1):
 
 def drawFeatures(image, feature_list, color, line=-1):
     
-    print('Drawing hole features: ', datetime.now().time())
+    # print('Drawing hole features: ', datetime.now().time())
 
     for feature_nodes in feature_list:
 
@@ -495,7 +523,7 @@ def adjustRotatedFeatures(feature_list, ymin, xmin):
 
 def createHoleBoundingBox(rotated_hole_array, ypp):
     
-    print('Creating hole bounding box: ', datetime.now().time())
+    # print('Creating hole bounding box: ', datetime.now().time())
     
     hole_node_list = rotated_hole_array.tolist()
 
@@ -534,7 +562,7 @@ def createHoleBoundingBox(rotated_hole_array, ypp):
 
         x_spread = (bb_xmax - bb_xmin) * ypp
 
-        print("Hole bounding box constrained to: ", x_spread, " yards wide")
+        # print("Hole bounding box constrained to: ", x_spread, " yards wide")
 
 
     # print("Hole bounding box: ",bb_xmin, bb_ymin, bb_xmax, bb_ymax)
@@ -546,7 +574,7 @@ def createHoleBoundingBox(rotated_hole_array, ypp):
 
 def filterArrayList(rotated_hole_array, feature_list, ypp, par, tee_box=0, fairway=0, filter_yards=50, small_filter=1, med_filter=1):
     
-    print('Filtering features by hole: ', datetime.now().time())
+    # print('Filtering features by hole: ', datetime.now().time())
     
     # if we've decided not to filter anything, just return the original list
     if filter_yards == None:
@@ -929,7 +957,7 @@ def getDistance(originpoint, destinationpoint, ypp):
 
 def getMaxPoints(feature_list):
     
-    print('Getting max points: ', datetime.now().time())
+    # print('Getting max points: ', datetime.now().time())
     
     max_points = []
 
@@ -951,7 +979,7 @@ def getMaxPoints(feature_list):
 
 def getMinPoints(feature_list):
     
-    print('Getting min points: ', datetime.now().time())
+    # print('Getting min points: ', datetime.now().time())
 
     min_points = []
 
@@ -972,7 +1000,7 @@ def getMinPoints(feature_list):
 
 def drawMarkerPoints(image, marker_point_list, text_size, text_color):
 
-    print('Drawing markers: ', datetime.now().time())
+    # print('Drawing markers: ', datetime.now().time())
     
     for point in marker_point_list:
 
@@ -984,7 +1012,7 @@ def drawMarkerPoints(image, marker_point_list, text_size, text_color):
 
 def drawCarry(image, green_center, carrypoint, tee_box_points, ypp, text_size, text_color, right):
     
-    print('Drawing carry distances: ', datetime.now().time())
+    # print('Drawing carry distances: ', datetime.now().time())
     
     text_weight = round(text_size*2)
 
@@ -1080,11 +1108,11 @@ def getThreeWaypoints(adjusted_hole_array):
 
     # if the line is close to vertical, we need to adjust to avoid float precision divide-by-zero errors later
     if (abs(hole_origin[0] - green_center[0]) < 0.00001):
-        print("adjusting green center value")
-        print("hole origin:",hole_origin)
-        print("green center:",green_center)
+        # print("adjusting green center value")
+        # print("hole origin:",hole_origin)
+        # print("green center:",green_center)
         green_center = [(green_center[0] + 0.001), green_center[1]]
-        print("adjusted green center:",green_center)
+        # print("adjusted green center:",green_center)
 
     if len(hole_points) == 2:
         midpoint = getMidpoint(hole_origin,green_center)
@@ -1131,8 +1159,8 @@ def distToLine(point,line1,line2,ypp):
 
 def getLine(point1,point2):
 
-    print("point 1:",point1)
-    print("point 2:",point2)
+    # print("point 1:",point1)
+    # print("point 2:",point2)
 
     slope = ((point1[1] - point2[1]) / (point1[0] - point2[0]))
 
@@ -1146,7 +1174,7 @@ def getLine(point1,point2):
 
 def drawCarryDistances(image, adjusted_hole_array, tee_box_list, carry_feature_list, ypp, text_size, text_color, filter_dist=40):
 
-    print('Drawing carry distances: ', datetime.now().time())
+    # print('Drawing carry distances: ', datetime.now().time())
     
     hole_origin, midpoint, green_center = getThreeWaypoints(adjusted_hole_array)
 
@@ -1219,7 +1247,7 @@ def drawExtraCarries(image, adjusted_hole_array, tee_boxes, right_carries, left_
 
         return None
 
-    print('Drawing an extra carry: ', datetime.now().time())
+    # print('Drawing an extra carry: ', datetime.now().time())
     
     # otherwise, let's proceed to draw a carry
 
@@ -1620,7 +1648,7 @@ def drawGreenDistancesTree(image, adjusted_hole_array, tree_list, ypp, text_size
 
     hole_origin, midpoint, green_center = getThreeWaypoints(adjusted_hole_array)
 
-    print('hole waypoints:', hole_origin, midpoint, green_center)
+    # print('hole waypoints:', hole_origin, midpoint, green_center)
 
     hole_distance = getDistance(hole_origin,green_center,ypp)
 
@@ -1751,7 +1779,7 @@ def drawGreenDistancesMax(image, adjusted_hole_array, feature_list, ypp, text_si
 
 def getGreenGrid(b_w_image, adjusted_hole_array, ypp):
 
-    print('Creating a green grid: ', datetime.now().time())
+    # print('Creating a green grid: ', datetime.now().time())
     
     hole_origin, midpoint, green_center = getThreeWaypoints(adjusted_hole_array)
 
@@ -1826,7 +1854,7 @@ def getGreenGrid(b_w_image, adjusted_hole_array, ypp):
 
 def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=50,short_factor=1,med_factor=1,include_trees=True,in_meters=False):
 
-    print('Getting core distances: ', datetime.now().time())
+    # print('Getting core distances: ', datetime.now().time())
     
     # calculate distance in yards of one degree of latitude and one degree of longitude
     lat_degree_distance = getLatDegreeDistance(latmin,latmax)
@@ -2106,17 +2134,18 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
             top_y_pad = int((new_height - height) / 2)
             bottom_y_pad = int((new_height - height) / 2)
 
-        padded_image = cv2.copyMakeBorder(cropped_image,top_y_pad,bottom_y_pad,left_x_pad,right_x_pad, cv2.BORDER_CONSTANT, value=(94, 166, 44))
+        padded_image = cv2.copyMakeBorder(cropped_image,top_y_pad,bottom_y_pad,left_x_pad,right_x_pad, cv2.BORDER_CONSTANT, value=colors["rough"])
 
 
         # save the image file to the output folder
         cv2.imwrite(("output/" + file_name), padded_image)
+        print("Yardage book created for hole",hole_num)
 
 
 
 
         # now, we need to make the green image for this hole
-        print('creating green grid')
+        # print('creating green grid')
 
         try:
             green_list = os.listdir("greens")
@@ -2185,7 +2214,8 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
         green_grid = getGreenGrid(bw_green_image, adjusted_hole_array,ypp)
 
         cv2.imwrite(("greens/" + file_name), green_grid)
+        print("Green image created for hole",hole_num)
 
-    print('All done: ', datetime.now().time())
+    # print('Complete: ', datetime.now().time())
 
     return True
