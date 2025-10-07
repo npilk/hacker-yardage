@@ -136,3 +136,5 @@ dmypy.json
 **/hacker-yardage/Constants.py
 **/hacker-yardage/output/
 **/hacker-yardage/greens/
+**/hacker-yardage/earthelevation.py
+**/hacker-yardage/experiments/
