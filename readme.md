@@ -19,7 +19,7 @@ This project wouldn't be possible without OpenStreetMap - please support them as
 
 You will need to have Python 3.6+ installed. You can find downloads from [the official Python website](https://www.python.org/downloads/).  
 
-First, you'll need to download all the files in this repository. You can do that either by running ```git clone https://github.com/elementninety3/hacker-yardage```, or by downloading a zip file from the Github website.
+First, you'll need to download all the files in this repository. You can do that either by running ```git clone https://github.com/npilk/hacker-yardage```, or by downloading a zip file from the Github website.
 
 Next, you'll need to install the Python packages listed in ```requirements.txt```. You can do this quite easily by navigating to the project's home folder from the command line and running ```pip install -r requirements.txt```. (If you're running Python 3.6 or later, ```pip``` should be included.)
 
