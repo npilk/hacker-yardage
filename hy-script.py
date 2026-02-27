@@ -13,9 +13,9 @@ from datetime import datetime
 # Enter bounding box coordinates from OSM here:
 
 latmin = 30.2286     # minimum latitude (south)
-lonmin = -97.7114    # minimum longitude (west)
+lonmin = -97.7114   # minimum longitude (west)
 latmax = 30.2448     # maximum latitude (north)
-lonmax = -97.7018    # maximum longitude (east)
+lonmax = -97.7018   # maximum longitude (east)
 
 
 # do you want to replace existing output files? default is False
@@ -26,14 +26,15 @@ replace_existing = False
 
 # colors for each feature can be customized here
 
-fairway_color = '#67f072'
-tee_box_color = '#67f072'
-green_color = '#a1f29b'
-rough_color = '#2ca65e' # this is the overall background color
-tree_color = '#1c6b3d'
-water_color = '#bafbeb'
-sand_color = '#ffeea1'
+fairway_color = '#34E884'
+tee_box_color = '#34E884'
+green_color = '#5AFCA3'
+rough_color = '#18BB3E' # this is the overall background color
+tree_color = '#178200'
+water_color = '#15BCF1'
+sand_color = '#FFD435'
 text_color = '#000000'
+topo_color = '#8B5E3C'  # muted brown - traditional topographic map color
 
 
 
@@ -41,7 +42,7 @@ text_color = '#000000'
 # (objects that are more than this number of yards
 # from the center line will be filtered out)
 
-hole_width = 100 # in yards
+hole_width = 50 # in yards
 
 
 # do you want to filter more aggressively near the tees?
@@ -57,7 +58,7 @@ short_filter = 1.5
 colors = {"fairways":hexToBGR(fairway_color),"tee boxes":hexToBGR(tee_box_color),
 "greens":hexToBGR(green_color),"rough":hexToBGR(rough_color),"trees":hexToBGR(tree_color),
 "water":hexToBGR(water_color),"sand":hexToBGR(sand_color),"text":hexToBGR(text_color),
-"woods":hexToBGR(tree_color)}
+"woods":hexToBGR(tree_color),"topo":hexToBGR(topo_color)}
 
 
 # calculate a medium range filter from the short range filter
@@ -76,8 +77,27 @@ include_trees = True
 in_meters = False
 
 
+# toggle for topography/elevation contour lines
+# requires py3dep (pip install py3dep) - data is from free USGS 3DEP, no API key needed
+# note: 3DEP data covers the US only; contours will be silently skipped for international courses
+
+include_topo = True
+
+# contour interval in meters (2.0m ≈ 6.5 ft is a good default for golf courses)
+
+topo_interval = 1.0
+
+# toggle for index contour labels (every Nth contour drawn thicker with elevation label)
+
+include_topo_labels = True
+
+# how often to draw an index contour (e.g. 5 = every 5th contour level gets a label)
+
+topo_index_every = 5
+
+
 # generate the yardage book
 
 if __name__ == "__main__":
     print('start: ', datetime.now().time())
-    book = generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=hole_width,short_factor=short_filter,med_factor=med_filter,include_trees=include_trees,in_meters=in_meters)
+    book = generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=hole_width,short_factor=short_filter,med_factor=med_filter,include_trees=include_trees,in_meters=in_meters,include_topo=include_topo,topo_interval=topo_interval,include_topo_labels=include_topo_labels,topo_index_every=topo_index_every)
