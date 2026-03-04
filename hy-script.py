@@ -96,8 +96,30 @@ include_topo_labels = True
 topo_index_every = 5
 
 
+# contour interval for green close-up images (finer than the hole image to show subtle breaks)
+# 0.3m ≈ 1ft is a good default for reading green contours
+
+green_topo_interval = 0.1
+
+# visualization style for green close-up topography
+# options:
+#   'gradient' — colour heatmap (blue=low, red=high) blended at 40% opacity
+#   'arrows'   — grid of arrows pointing downhill, longer = steeper slope
+#   'both'     — gradient heatmap + arrows overlaid
+#   'contours' — thin contour lines at green_topo_interval (same style as hole image)
+
+green_topo_style = 'both'
+
+# total elevation range (metres) that maps to the full colour / arrow scale.
+# a green with less relief than this will only use part of the scale, so flat and
+# steep greens are visually comparable rather than always stretching to full range.
+# 5m is generous for golf greens; reduce to 2-3m if your course is generally flat.
+
+green_topo_scale_m = 5.0
+
+
 # generate the yardage book
 
 if __name__ == "__main__":
     print('start: ', datetime.now().time())
-    book = generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=hole_width,short_factor=short_filter,med_factor=med_filter,include_trees=include_trees,in_meters=in_meters,include_topo=include_topo,topo_interval=topo_interval,include_topo_labels=include_topo_labels,topo_index_every=topo_index_every)
+    book = generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=hole_width,short_factor=short_filter,med_factor=med_filter,include_trees=include_trees,in_meters=in_meters,include_topo=include_topo,topo_interval=topo_interval,include_topo_labels=include_topo_labels,topo_index_every=topo_index_every,green_topo_interval=green_topo_interval,green_topo_style=green_topo_style,green_topo_scale_m=green_topo_scale_m)

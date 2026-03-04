@@ -52,7 +52,7 @@ def getOSMGolfWays(bottom_lat, left_lon, top_lat, right_lon, printf=print):
     query = "(way['golf'='hole'](" + coord_string + "););out body;>;out skel qt;"
 
     # try the primary Overpass server first, then fall back to the mirror
-    for url in [None, "https://overpass.kumi.systems/api/interpreter"]:
+    for url in [None, "https://overpass.kumi.systems/api/interpreter", "https://overpass.openstreetmap.ru/api/interpreter", "https://overpass-api.de/api/interpreter"]:
         try:
             op = overpy.Overpass() if url is None else overpy.Overpass(url=url)
             return op.query(query)
@@ -68,29 +68,23 @@ def getOSMGolfWays(bottom_lat, left_lon, top_lat, right_lon, printf=print):
 
 def getOSMGolfData(bottom_lat, left_lon, top_lat, right_lon, printf=print):
 
-    op = overpy.Overpass(url="https://overpass.kumi.systems/api/interpreter") # optional replacement url if servers are busy - url="https://overpass.kumi.systems/api/interpreter"
-
     # create the coordinate string for our request - order is South, West, North, East
     coord_string = str(bottom_lat) + "," + str(left_lon) + "," + str(top_lat) + "," + str(right_lon)
-    
 
     # use the coordinate string to pull the data through Overpass
     # we want all golf ways, with some additions for woods, trees, and water hazards
+    query = "(way['golf'](" + coord_string + ");way['natural'='wood'](" + coord_string + ");node['natural'='tree'](" + coord_string + ");way['landuse'='forest'](" + coord_string + ");way['natural'='water'](" + coord_string + ");relation['golf'='fairway'](" + coord_string + "););out body;>;out skel qt;"
 
-    try:
-        query = "(way['golf'](" + coord_string + ");way['natural'='wood'](" + coord_string + ");node['natural'='tree'](" + coord_string + ");way['landuse'='forest'](" + coord_string + ");way['natural'='water'](" + coord_string + ");relation['golf'='fairway'](" + coord_string + "););out body;>;out skel qt;"
-        # print('Query: ', query)
+    # try the primary Overpass server first, then fall back to mirrors
+    for url in [None, "https://overpass.kumi.systems/api/interpreter", "https://overpass.openstreetmap.ru/api/interpreter", "https://overpass-api.de/api/interpreter"]:
+        try:
+            op = overpy.Overpass() if url is None else overpy.Overpass(url=url)
+            return op.query(query)
+        except (overpy.exception.OverPyException, overpy.exception.OverpassGatewayTimeout):
+            continue
 
-        # print('Getting golf data nodes for hole: ', datetime.now().time())
-        data = op.query(query)
-        # print('Query complete: ', datetime.now().time())
-        # print(data)
-
-        return data
-    
-    except overpy.exception.OverPyException:
-        printf("OpenStreetMap servers are too busy right now.  Try running this tool later.")
-        return None
+    printf("OpenStreetMap servers are too busy right now.  Try running this tool later.")
+    return None
 
 
 # calculate length of a degree of latitude at a given location
@@ -1774,10 +1768,13 @@ def drawGreenDistancesMax(image, adjusted_hole_array, feature_list, ypp, text_si
 
 # draw a three-yard grid over the green image that is aligned with the center of the green
 
-def getGreenGrid(b_w_image, adjusted_hole_array, ypp):
+def getGreenGrid(b_w_image, adjusted_hole_array, ypp, elev_img=None,
+                 green_topo_style='gradient', green_topo_color=(80, 80, 80),
+                 green_topo_interval=0.5, green_topo_scale_m=5.0,
+                 green_poly=None):
 
     # print('Creating a green grid: ', datetime.now().time())
-    
+
     hole_origin, midpoint, green_center = getThreeWaypoints(adjusted_hole_array)
 
     x = int(green_center[0])
@@ -1796,6 +1793,49 @@ def getGreenGrid(b_w_image, adjusted_hole_array, ypp):
 
 
     cropped_image = b_w_image[ymin:ymax, xmin:xmax]
+
+    # --- green topography visualization ---
+    if elev_img is not None:
+        img_h, img_w = b_w_image.shape[:2]
+        cy1 = max(0, ymin)
+        cy2 = min(img_h, ymax)
+        cx1 = max(0, xmin)
+        cx2 = min(img_w, xmax)
+        if cy2 > cy1 and cx2 > cx1:
+            elev_crop = elev_img[cy1:cy2, cx1:cx2].copy()
+            ch, cw = cropped_image.shape[:2]
+            if elev_crop.shape[:2] != (ch, cw):
+                elev_crop = cv2.resize(elev_crop, (cw, ch), interpolation=cv2.INTER_LINEAR)
+
+            # build a mask so visualizations are confined to the green polygon surface
+            green_mask = np.zeros((ch, cw), dtype=np.uint8)
+            if green_poly is not None:
+                # offset polygon from full-image coords to crop coords
+                pts = (green_poly - np.array([xmin, ymin], dtype=float)).astype(np.int32)
+                pts = pts.reshape(-1, 1, 2)
+                cv2.fillPoly(green_mask, [pts], 255)
+            else:
+                green_mask[:] = 255  # no polygon: apply to whole crop
+
+            # snapshot before drawing so we can restore pixels outside the green
+            before = cropped_image.copy()
+
+            if green_topo_style in ('gradient', 'both'):
+                drawGreenElevationGradient(cropped_image, elev_crop,
+                                           scale_m=green_topo_scale_m, green_mask=green_mask)
+
+            if green_topo_style in ('arrows', 'both'):
+                drawGreenSlopeArrows(cropped_image, elev_crop, ypp, color=green_topo_color,
+                                     green_mask=green_mask)
+
+            if green_topo_style == 'contours':
+                green_contours = getContourArrays(elev_crop, interval_m=green_topo_interval)
+                if green_contours:
+                    drawContourLines(cropped_image, green_contours, green_topo_color, thickness=1)
+
+            # restore pixels that fall outside the green polygon
+            outside = green_mask == 0
+            cropped_image[outside] = before[outside]
 
     (h, w) = cropped_image.shape[:2]
 
@@ -2050,6 +2090,110 @@ def adjustTickData(positions, directions, xmin, ymin):
     return positions - np.array([xmin, ymin], dtype=float), directions
 
 
+# rotate an elevation image (float32) to match the rotated hole/green image.
+# uses the same rotation center and angle convention as rotateArray / getNewImage.
+# ymin, xmin, ymax, xmax are the offsets returned by getNewImage for this rotation.
+
+def rotateElevationImage(elev_img, image, angle, ymin, xmin, ymax, xmax):
+
+    (h, w) = image.shape[:2]
+    # cv2.getRotationMatrix2D with -angle matches the Rotate2D convention used throughout
+    M = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), -angle, 1.0)
+    # shift so that the top-left of the rotated bounding box is at (0, 0)
+    M[0, 2] -= xmin
+    M[1, 2] -= ymin
+    new_w = int(round(xmax - xmin))
+    new_h = int(round(ymax - ymin))
+    return cv2.warpAffine(elev_img, M, (new_w, new_h),
+                          flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+
+
+# draw a colour-gradient elevation heatmap on the green close-up image.
+# elev_crop is a float32 array the same size as image.
+# low elevation → cool blue, high elevation → warm red (COLORMAP_JET convention).
+# scale_m is the total elevation range that maps to the full spectrum; the scale is centred on
+# the mean elevation of the green polygon (not the whole crop) so the stats only reflect the
+# putting surface itself.  green_mask is an 8-bit mask (255 = inside green polygon).
+
+def drawGreenElevationGradient(image, elev_crop, alpha=0.4, scale_m=5.0, green_mask=None):
+
+    h, w = image.shape[:2]
+    ec = elev_crop
+    if ec.shape[:2] != (h, w):
+        ec = cv2.resize(ec, (w, h), interpolation=cv2.INTER_LINEAR)
+
+    # compute centre elevation only from the green polygon pixels (or whole crop if no mask)
+    if green_mask is not None and green_mask.shape == ec.shape[:2]:
+        green_vals = ec[green_mask > 0]
+    else:
+        green_vals = ec.ravel()
+    green_vals = green_vals[np.isfinite(green_vals)]
+    if len(green_vals) == 0:
+        return
+    e_center = float(np.mean(green_vals))
+    e_range = float(np.max(green_vals) - np.min(green_vals))
+    if e_range < 0.005:
+        return  # essentially flat — nothing useful to show
+
+    # diverging scale centred on the green mean; scale_m is the full span
+    e_lo = e_center - scale_m / 2.0
+    norm = np.clip((ec - e_lo) / scale_m * 255, 0, 255).astype(np.uint8)
+    colored = cv2.applyColorMap(norm, cv2.COLORMAP_JET)
+    cv2.addWeighted(colored, alpha, image, 1.0 - alpha, 0, image)
+
+
+# draw a grid of arrows on the green close-up image, each pointing downhill.
+# arrow length is proportional to physical slope, normalised to ref_slope_pct so the same
+# real-world grade always produces the same visual arrow length across different greens.
+# elev_crop is a float32 array the same size as image.
+
+def drawGreenSlopeArrows(image, elev_crop, ypp, color=(60, 60, 60), grid_yards=1.5,
+                         ref_slope_pct=5.0, green_mask=None):
+
+    h, w = image.shape[:2]
+    ec = elev_crop.astype(np.float32)
+    if ec.shape[:2] != (h, w):
+        ec = cv2.resize(ec, (w, h), interpolation=cv2.INTER_LINEAR)
+
+    smoothed = cv2.GaussianBlur(ec, (0, 0), sigmaX=5.0, sigmaY=5.0)
+
+    # np.gradient returns (grad_rows, grad_cols) = (dy, dx) in units of metres/pixel
+    gy, gx = np.gradient(smoothed)
+
+    step_px = max(8, int(grid_yards / ypp))
+
+    # convert the reference slope (%) to metres/pixel so we can compare directly with gradient
+    metres_per_pixel = ypp * 0.9144   # ypp is yards/pixel; 1 yard = 0.9144 m
+    ref_gradient = (ref_slope_pct / 100.0) * metres_per_pixel
+    if ref_gradient < 1e-9:
+        return
+
+    # scale max arrow to 55% of the grid step; thickness proportional to image resolution
+    max_arrow = step_px * 0.55
+    thickness = max(2, step_px // 7)
+
+    for row in range(step_px // 2, h, step_px):
+        for col in range(step_px // 2, w, step_px):
+            # skip grid cells whose centre falls outside the green polygon
+            if green_mask is not None and green_mask[row, col] == 0:
+                continue
+            dx = float(gx[row, col])
+            dy = float(gy[row, col])
+            magnitude = math.sqrt(dx * dx + dy * dy)
+            if magnitude < 1e-9:
+                continue
+            # downhill direction = negative gradient; length relative to fixed reference slope
+            scale = min(magnitude / ref_gradient, 1.0) * max_arrow
+            if scale < 3:
+                continue
+            ndx = -dx / magnitude * scale
+            ndy = -dy / magnitude * scale
+            pt1 = (col, row)
+            pt2 = (int(col + ndx), int(row + ndy))
+            cv2.arrowedLine(image, pt1, pt2, color, thickness=thickness,
+                            tipLength=0.4, line_type=cv2.LINE_AA)
+
+
 # draw small filled triangles pointing uphill on contour lines
 
 def drawContourTicks(image, positions, directions, color, tick_length=12):
@@ -2166,7 +2310,7 @@ def drawIndexContours(image, index_contour_list, color, text_size):
         labeled_positions.append((x, y))
 
 
-def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=50,short_factor=1,med_factor=1,include_trees=True,in_meters=False,include_topo=False,topo_interval=2.0,include_topo_labels=True,topo_index_every=5):
+def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=50,short_factor=1,med_factor=1,include_trees=True,in_meters=False,include_topo=False,topo_interval=2.0,include_topo_labels=True,topo_index_every=5,green_topo_interval=0.5,green_topo_style='gradient',green_topo_scale_m=5.0):
 
     # print('Getting core distances: ', datetime.now().time())
     
@@ -2534,6 +2678,11 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
         # time to make a new image
         rotated_image, ymin, xmin, ymax, xmax = getNewImage(image,angle,colors["rough"])
 
+        # rotate the elevation image to match the green image orientation (if available)
+        rotated_elev_green = None
+        if include_topo and elev_img is not None:
+            rotated_elev_green = rotateElevationImage(elev_img, image, angle, ymin, xmin, ymax, xmax)
+
         final_fairways, fw_minx, fw_miny, fw_maxx, fw_maxy = adjustRotatedFeatures(filtered_fairways, ymin, xmin)
         final_tee_boxes, tb_minx, tb_miny, tb_maxx, tb_maxy = adjustRotatedFeatures(filtered_tee_boxes, ymin, xmin)
         final_water_hazards, n1, n2, n3, n4 = adjustRotatedFeatures(filtered_water_hazards, ymin, xmin)
@@ -2564,7 +2713,13 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 
         # we also want to overlay a 3-yard grid to show how large the green is
         # and to make it easier to figure out carry distances to greenside bunkers
-        green_grid = getGreenGrid(bw_green_image, adjusted_hole_array,ypp)
+        green_grid = getGreenGrid(bw_green_image, adjusted_hole_array, ypp,
+                                  elev_img=rotated_elev_green,
+                                  green_topo_style=green_topo_style,
+                                  green_topo_color=colors.get("topo", (80, 80, 80)),
+                                  green_topo_interval=green_topo_interval,
+                                  green_topo_scale_m=green_topo_scale_m,
+                                  green_poly=final_green_array[0] if final_green_array else None)
 
         cv2.imwrite(("greens/" + file_name), green_grid)
         print("Green image created for hole",hole_num)
