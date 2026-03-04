@@ -1770,6 +1770,7 @@ def drawGreenDistancesMax(image, adjusted_hole_array, feature_list, ypp, text_si
 
 def getGreenGrid(b_w_image, adjusted_hole_array, ypp, elev_img=None,
                  green_topo_style='gradient', green_topo_color=(80, 80, 80),
+                 green_arrow_color=None,
                  green_topo_interval=0.5, green_topo_scale_m=5.0,
                  green_poly=None):
 
@@ -1794,6 +1795,21 @@ def getGreenGrid(b_w_image, adjusted_hole_array, ypp, elev_img=None,
 
     cropped_image = b_w_image[ymin:ymax, xmin:xmax]
 
+    # upsample the green crop to a minimum resolution so elevation arrows and grid
+    # are readable regardless of how large the hole bounding box is
+    target_green_px = 1200
+    ch_orig, cw_orig = cropped_image.shape[:2]
+    max_dim = max(ch_orig, cw_orig)
+    if max_dim > 0 and max_dim < target_green_px:
+        green_scale = target_green_px / max_dim
+        new_ch = int(round(ch_orig * green_scale))
+        new_cw = int(round(cw_orig * green_scale))
+        cropped_image = cv2.resize(cropped_image, (new_cw, new_ch), interpolation=cv2.INTER_LINEAR)
+    else:
+        green_scale = 1.0
+    # yards-per-pixel in the (possibly upsampled) green image
+    ypp_green = ypp / green_scale
+
     # --- green topography visualization ---
     if elev_img is not None:
         img_h, img_w = b_w_image.shape[:2]
@@ -1810,8 +1826,8 @@ def getGreenGrid(b_w_image, adjusted_hole_array, ypp, elev_img=None,
             # build a mask so visualizations are confined to the green polygon surface
             green_mask = np.zeros((ch, cw), dtype=np.uint8)
             if green_poly is not None:
-                # offset polygon from full-image coords to crop coords
-                pts = (green_poly - np.array([xmin, ymin], dtype=float)).astype(np.int32)
+                # offset polygon from full-image coords to crop coords, then scale to upsampled size
+                pts = ((green_poly - np.array([xmin, ymin], dtype=float)) * green_scale).astype(np.int32)
                 pts = pts.reshape(-1, 1, 2)
                 cv2.fillPoly(green_mask, [pts], 255)
             else:
@@ -1825,7 +1841,8 @@ def getGreenGrid(b_w_image, adjusted_hole_array, ypp, elev_img=None,
                                            scale_m=green_topo_scale_m, green_mask=green_mask)
 
             if green_topo_style in ('arrows', 'both'):
-                drawGreenSlopeArrows(cropped_image, elev_crop, ypp, color=green_topo_color,
+                arrow_color = green_arrow_color if green_arrow_color is not None else green_topo_color
+                drawGreenSlopeArrows(cropped_image, elev_crop, ypp_green, color=arrow_color,
                                      green_mask=green_mask)
 
             if green_topo_style == 'contours':
@@ -1844,7 +1861,7 @@ def getGreenGrid(b_w_image, adjusted_hole_array, ypp, elev_img=None,
     else:
         line_thickness = 1
 
-    grid_x = x - xmin
+    grid_x = (x - xmin) * green_scale
 
     while grid_x < w:
         x1, y1 = int(grid_x), 0
@@ -1852,9 +1869,9 @@ def getGreenGrid(b_w_image, adjusted_hole_array, ypp, elev_img=None,
 
         cv2.line(cropped_image, (x1, y1), (x2, y2), (140, 140, 140), thickness=line_thickness)
 
-        grid_x += 3/ypp
+        grid_x += 3/ypp_green
 
-    grid_x = int(x - xmin - 3/ypp)
+    grid_x = (x - xmin) * green_scale - 3/ypp_green
 
     while grid_x > 0:
         x1, y1 = int(grid_x), 0
@@ -1862,9 +1879,9 @@ def getGreenGrid(b_w_image, adjusted_hole_array, ypp, elev_img=None,
 
         cv2.line(cropped_image, (x1, y1), (x2, y2), (140, 140, 140), thickness=line_thickness)
 
-        grid_x -= 3/ypp
+        grid_x -= 3/ypp_green
 
-    grid_y = y - ymin
+    grid_y = (y - ymin) * green_scale
 
     while grid_y < h:
         x1, y1 = 0, int(grid_y)
@@ -1872,9 +1889,9 @@ def getGreenGrid(b_w_image, adjusted_hole_array, ypp, elev_img=None,
 
         cv2.line(cropped_image, (x1, y1), (x2, y2), (140, 140, 140), thickness=line_thickness)
 
-        grid_y += 3/ypp
+        grid_y += 3/ypp_green
 
-    grid_y = int(y - ymin - 3/ypp)
+    grid_y = (y - ymin) * green_scale - 3/ypp_green
 
     while grid_y > 0:
         x1, y1 = 0, int(grid_y)
@@ -1882,7 +1899,7 @@ def getGreenGrid(b_w_image, adjusted_hole_array, ypp, elev_img=None,
 
         cv2.line(cropped_image, (x1, y1), (x2, y2), (140, 140, 140), thickness=line_thickness)
 
-        grid_y -= 3/ypp
+        grid_y -= 3/ypp_green
 
     padded_image = cv2.copyMakeBorder(cropped_image,line_thickness,line_thickness,line_thickness,line_thickness, cv2.BORDER_CONSTANT, value=(140, 140, 140))
 
@@ -2098,7 +2115,7 @@ def rotateElevationImage(elev_img, image, angle, ymin, xmin, ymax, xmax):
 
     (h, w) = image.shape[:2]
     # cv2.getRotationMatrix2D with -angle matches the Rotate2D convention used throughout
-    M = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), -angle, 1.0)
+    M = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), angle, 1.0)
     # shift so that the top-left of the rotated bounding box is at (0, 0)
     M[0, 2] -= xmin
     M[1, 2] -= ymin
@@ -2170,7 +2187,7 @@ def drawGreenSlopeArrows(image, elev_crop, ypp, color=(60, 60, 60), grid_yards=1
 
     # scale max arrow to 55% of the grid step; thickness proportional to image resolution
     max_arrow = step_px * 0.55
-    thickness = max(2, step_px // 7)
+    thickness = max(1, step_px // 12)
 
     for row in range(step_px // 2, h, step_px):
         for col in range(step_px // 2, w, step_px):
@@ -2191,7 +2208,7 @@ def drawGreenSlopeArrows(image, elev_crop, ypp, color=(60, 60, 60), grid_yards=1
             pt1 = (col, row)
             pt2 = (int(col + ndx), int(row + ndy))
             cv2.arrowedLine(image, pt1, pt2, color, thickness=thickness,
-                            tipLength=0.4, line_type=cv2.LINE_AA)
+                            tipLength=0.3, line_type=cv2.LINE_8)
 
 
 # draw small filled triangles pointing uphill on contour lines
@@ -2327,6 +2344,14 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
     result = getOSMGolfWays(latmin,lonmin,latmax,lonmax)
     ways = result.ways
 
+    # download all course feature data once (fairways, greens, bunkers, etc.)
+    # this avoids a separate API call per hole, which causes timeouts on larger courses
+    print("Downloading course feature data...")
+    course_result = getOSMGolfData(latmin, lonmin, latmax, lonmax)
+    if course_result is None:
+        print("Error: could not download course feature data. Check your coordinates or try again later.")
+        return False
+
 
     # find or create output directory
     # and get a list of existing files so we don't overwrite unintentionally
@@ -2391,9 +2416,9 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
         new_file_list.append(file_name)
 
 
-        # download all the golf data for this hole
-
-        hole_way_nodes, hole_result, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon = getHoleOSMData(way, lat_degree_distance, lon_degree_distance)
+        # get the bounding box for this hole and reuse the already-downloaded course data
+        hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, hole_way_nodes = getHoleBoundingBox(way, lat_degree_distance, lon_degree_distance)
+        hole_result = course_result
 
         # create a base image to use for this hole (and calculate yards per pixel)
         image, x_dim, y_dim, ypp = generateImage(hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, lat_degree_distance, lon_degree_distance,colors["rough"])
@@ -2414,14 +2439,6 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
                 if include_topo_labels and raw_contours:
                     raw_tick_positions, raw_tick_directions = getContourTicks(raw_contours, elev_img)
 
-                # save a debug image: contour lines on white background, pre-rotation
-                debug_topo = np.zeros((x_dim, y_dim, 3), np.uint8)
-                debug_topo[:] = (255, 255, 255)
-                for contour in raw_contours:
-                    pts = np.int32(contour).reshape((-1, 1, 2))
-                    cv2.polylines(debug_topo, [pts], isClosed=False, color=(0, 0, 0), thickness=2)
-                cv2.imwrite(f"output/topo_hole_{hole_num}.png", debug_topo)
-                print(f"  Topo: debug image saved to output/topo_hole_{hole_num}.png")
 
         # find this hole's green
         green_nodes = identifyGreen(hole_way_nodes, hole_result)
@@ -2717,6 +2734,7 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
                                   elev_img=rotated_elev_green,
                                   green_topo_style=green_topo_style,
                                   green_topo_color=colors.get("topo", (80, 80, 80)),
+                                  green_arrow_color=colors.get("green_arrow"),
                                   green_topo_interval=green_topo_interval,
                                   green_topo_scale_m=green_topo_scale_m,
                                   green_poly=final_green_array[0] if final_green_array else None)

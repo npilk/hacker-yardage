@@ -35,6 +35,7 @@ water_color = '#15BCF1'
 sand_color = '#FFD435'
 text_color = '#000000'
 topo_color = '#8B5E3C'  # muted brown - traditional topographic map color
+green_arrow_color = '#000000'  # black arrows on green close-ups
 
 
 
@@ -58,7 +59,7 @@ short_filter = 1.5
 colors = {"fairways":hexToBGR(fairway_color),"tee boxes":hexToBGR(tee_box_color),
 "greens":hexToBGR(green_color),"rough":hexToBGR(rough_color),"trees":hexToBGR(tree_color),
 "water":hexToBGR(water_color),"sand":hexToBGR(sand_color),"text":hexToBGR(text_color),
-"woods":hexToBGR(tree_color),"topo":hexToBGR(topo_color)}
+"woods":hexToBGR(tree_color),"topo":hexToBGR(topo_color),"green_arrow":hexToBGR(green_arrow_color)}
 
 
 # calculate a medium range filter from the short range filter
