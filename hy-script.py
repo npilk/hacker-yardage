@@ -34,7 +34,7 @@ tree_color = '#178200'
 water_color = '#15BCF1'
 sand_color = '#FFD435'
 text_color = '#000000'
-topo_color = '#8B5E3C'  # muted brown - traditional topographic map color
+topo_color = '#8B5E3C' 
 green_arrow_color = '#000000'  # black arrows on green close-ups
 
 
@@ -50,7 +50,7 @@ hole_width = 50 # in yards
 # (this can help ignore random bunkers, etc.)
 # enter a fraction
 
-short_filter = 1.5
+short_filter = 0.8
 
 
 

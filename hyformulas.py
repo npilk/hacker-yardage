@@ -2342,6 +2342,9 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 
     # download golf hole info from OSM
     result = getOSMGolfWays(latmin,lonmin,latmax,lonmax)
+    if result is None:
+        print("Error: could not download golf hole data. Check your coordinates or try again later.")
+        return False
     ways = result.ways
 
     # download all course feature data once (fairways, greens, bunkers, etc.)
