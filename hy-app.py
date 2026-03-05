@@ -5,7 +5,7 @@ import webbrowser
 
 import tkinter.messagebox as mb
 
-import time
+import threading
 
 
 root = tk.Tk()
@@ -25,6 +25,7 @@ frm_options.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
 frm_options.columnconfigure(0, weight=1, minsize=200)
 frm_options.columnconfigure(1, weight=1, minsize=200)
+frm_options.columnconfigure(2, weight=1, minsize=200)
 frm_options.rowconfigure(0, weight=1, minsize=200)
 
 frm_button = tk.Frame(master=window, height=20)
@@ -35,7 +36,7 @@ def callback(url): # for opening hyperlink
 
 
 def loadingWindow():
-    win = tk.Tk()
+    win = tk.Toplevel(root)
     win.title('Generating')
     message = "Generating yardage book..."
     tk.Label(win, text=message).pack(padx=20,pady=20)
@@ -67,7 +68,9 @@ def run_program():
 			"water":hexToBGR(color_entries["Water"].get()),
 			"sand":hexToBGR(color_entries["Sand"].get()),
 			"text":hexToBGR(color_entries["Text & Labels"].get()),
-			"woods":hexToBGR(color_entries["Trees"].get())}
+			"woods":hexToBGR(color_entries["Trees"].get()),
+			"topo":hexToBGR(ent_contour_color.get()),
+			"green_arrow":hexToBGR(ent_green_arrow_color.get())}
 
 	except ValueError:
 		tk.messagebox.showerror(title="Error",message="Please make sure all colors are properly entered in hex format.")
@@ -92,28 +95,62 @@ def run_program():
 
 	in_meters = in_meters_var.get()
 
-	# generate the yardage book
+	include_topo = include_topo_var.get()
 
 	try:
-
-		loading = loadingWindow()
-
-		time.sleep(2)
-
-		book = generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=hole_width,short_factor=small_scale,med_factor=med_scale, include_trees=include_trees, in_meters=in_meters)
-
-		loading.destroy()
-
+		topo_interval = float(ent_topo_interval.get())
 	except ValueError:
-		mb.showerror(title="Error",message="Error: unable to look up coordinates in OSM. Please make sure all coordinates are formatted properly.")
+		tk.messagebox.showerror(title="Error", message="Please enter a valid number for the contour interval.")
 		return False
 
-	# open the output folder for the user
+	include_topo_labels = include_topo_labels_var.get()
 
-	folderpath = os.path.dirname(os.path.abspath(__file__))
-	webbrowser.open('file:///' + folderpath + "/output")
+	try:
+		topo_index_every = int(ent_topo_index.get())
+	except ValueError:
+		tk.messagebox.showerror(title="Error", message="Please enter a whole number for the index contour interval.")
+		return False
 
-	return True
+	try:
+		green_topo_interval = float(ent_green_topo_interval.get())
+	except ValueError:
+		tk.messagebox.showerror(title="Error", message="Please enter a valid number for the green contour interval.")
+		return False
+
+	green_topo_style = green_topo_style_var.get()
+
+	try:
+		green_topo_scale_m = float(ent_green_topo_scale.get())
+	except ValueError:
+		tk.messagebox.showerror(title="Error", message="Please enter a valid number for the green elevation scale.")
+		return False
+
+	# generate the yardage book in a background thread so the loading window stays responsive
+
+	loading = loadingWindow()
+	error = [None]
+
+	def generate():
+		try:
+			generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=hole_width,short_factor=small_scale,med_factor=med_scale,include_trees=include_trees,in_meters=in_meters,include_topo=include_topo,topo_interval=topo_interval,include_topo_labels=include_topo_labels,topo_index_every=topo_index_every,green_topo_interval=green_topo_interval,green_topo_style=green_topo_style,green_topo_scale_m=green_topo_scale_m)
+		except Exception as e:
+			error[0] = e
+
+	thread = threading.Thread(target=generate, daemon=True)
+	thread.start()
+
+	def check():
+		if thread.is_alive():
+			root.after(200, check)
+		else:
+			loading.destroy()
+			if error[0] is not None:
+				mb.showerror(title="Error",message="Error: unable to look up coordinates in OSM. Please make sure all coordinates are formatted properly.")
+			else:
+				folderpath = os.path.dirname(os.path.abspath(__file__))
+				webbrowser.open('file:///' + folderpath + "/output")
+
+	root.after(200, check)
 
 
 btn_confirm = tk.Button(text="Generate Yardages",master=frm_button, command=run_program, width=20)
@@ -207,9 +244,9 @@ lbl_colorslabel = tk.Label(master=frm_colorslabel, text="Customize colors:")
 lbl_colorslabel.pack()
 
 
-default_colors = {"Fairways":"#85D87E","Tee Boxes":"#85D87E",
-	"Greens":"#A1F29B","Background":"#2CA65E","Trees":"#1C6B3D",
-	"Water":"#BAFBEB","Sand":"#FFEEA1","Text & Labels":"#000000"}
+default_colors = {"Fairways":"#34E884","Tee Boxes":"#34E884",
+	"Greens":"#5AFCA3","Background":"#18BB3E","Trees":"#178200",
+	"Water":"#15BCF1","Sand":"#FFD435","Text & Labels":"#000000"}
 
 color_entries = {}
 
@@ -296,6 +333,115 @@ in_meters_var = tk.IntVar()
 ent_in_meters = tk.Checkbutton(master=frm_others, text="Show distances in meters", variable=in_meters_var)
 
 ent_in_meters.grid(row=5, column=1, padx=5, pady=5)
+
+
+
+frm_topo = tk.Frame(master=frm_options)
+frm_topo.grid(row=0, column=2, padx=5, pady=5)
+
+frm_topolabel = tk.Frame(master=frm_topo)
+frm_topolabel.grid(row=0, column=0, columnspan=2, pady=5)
+
+lbl_topolabel = tk.Label(master=frm_topolabel, text="Topography options:")
+lbl_topolabel.pack()
+
+
+frm_contour_color = tk.Frame(master=frm_topo)
+
+lbl_contour_color = tk.Label(master=frm_contour_color, text="Contour Lines:", anchor="e", width=22)
+ent_contour_color = tk.Entry(master=frm_contour_color, width=10)
+ent_contour_color.insert(0, "#8B5E3C")
+
+lbl_contour_color.pack(side="left")
+ent_contour_color.pack(side="left")
+
+frm_contour_color.grid(row=1, column=0, columnspan=2, padx=5, pady=5)
+
+
+frm_green_arrow_color = tk.Frame(master=frm_topo)
+
+lbl_green_arrow_color = tk.Label(master=frm_green_arrow_color, text="Green Slope Arrows:", anchor="e", width=22)
+ent_green_arrow_color = tk.Entry(master=frm_green_arrow_color, width=10)
+ent_green_arrow_color.insert(0, "#000000")
+
+lbl_green_arrow_color.pack(side="left")
+ent_green_arrow_color.pack(side="left")
+
+frm_green_arrow_color.grid(row=2, column=0, columnspan=2, padx=5, pady=5)
+
+
+include_topo_var = tk.IntVar()
+
+ent_include_topo = tk.Checkbutton(master=frm_topo, text="Include topography contours", variable=include_topo_var)
+ent_include_topo.select()
+ent_include_topo.grid(row=3, column=0, columnspan=2, padx=5, pady=5)
+
+
+frm_topo_interval = tk.Frame(master=frm_topo)
+
+lbl_topo_interval = tk.Label(master=frm_topo_interval, text="Contour interval (m):", anchor="e", width=22)
+ent_topo_interval = tk.Entry(master=frm_topo_interval, width=5)
+ent_topo_interval.insert(0, "1.0")
+
+lbl_topo_interval.pack(side="left")
+ent_topo_interval.pack(side="left")
+
+frm_topo_interval.grid(row=4, column=0, columnspan=2, padx=5, pady=5)
+
+
+include_topo_labels_var = tk.IntVar()
+
+ent_include_topo_labels = tk.Checkbutton(master=frm_topo, text="Include index contour labels", variable=include_topo_labels_var)
+ent_include_topo_labels.select()
+ent_include_topo_labels.grid(row=5, column=0, columnspan=2, padx=5, pady=5)
+
+
+frm_topo_index = tk.Frame(master=frm_topo)
+
+lbl_topo_index = tk.Label(master=frm_topo_index, text="Label every Nth contour:", anchor="e", width=22)
+ent_topo_index = tk.Entry(master=frm_topo_index, width=5)
+ent_topo_index.insert(0, "5")
+
+lbl_topo_index.pack(side="left")
+ent_topo_index.pack(side="left")
+
+frm_topo_index.grid(row=6, column=0, columnspan=2, padx=5, pady=5)
+
+
+frm_green_topo_interval = tk.Frame(master=frm_topo)
+
+lbl_green_topo_interval = tk.Label(master=frm_green_topo_interval, text="Green contour interval (m):", anchor="e", width=22)
+ent_green_topo_interval = tk.Entry(master=frm_green_topo_interval, width=5)
+ent_green_topo_interval.insert(0, "0.1")
+
+lbl_green_topo_interval.pack(side="left")
+ent_green_topo_interval.pack(side="left")
+
+frm_green_topo_interval.grid(row=7, column=0, columnspan=2, padx=5, pady=5)
+
+
+frm_green_topo_style = tk.Frame(master=frm_topo)
+
+lbl_green_topo_style = tk.Label(master=frm_green_topo_style, text="Green topo style:", anchor="e", width=22)
+green_topo_style_var = tk.StringVar(value="both")
+opt_green_topo_style = tk.OptionMenu(frm_green_topo_style, green_topo_style_var, "gradient", "arrows", "both", "contours")
+
+lbl_green_topo_style.pack(side="left")
+opt_green_topo_style.pack(side="left")
+
+frm_green_topo_style.grid(row=8, column=0, columnspan=2, padx=5, pady=5)
+
+
+frm_green_topo_scale = tk.Frame(master=frm_topo)
+
+lbl_green_topo_scale = tk.Label(master=frm_green_topo_scale, text="Green elevation scale (m):", anchor="e", width=22)
+ent_green_topo_scale = tk.Entry(master=frm_green_topo_scale, width=5)
+ent_green_topo_scale.insert(0, "5.0")
+
+lbl_green_topo_scale.pack(side="left")
+ent_green_topo_scale.pack(side="left")
+
+frm_green_topo_scale.grid(row=9, column=0, columnspan=2, padx=5, pady=5)
 
 
 root.mainloop()
