@@ -12,10 +12,18 @@ from datetime import datetime
 
 # Enter bounding box coordinates from OSM here:
 
+# Riverside (Austin, TX)
 latmin = 30.2286     # minimum latitude (south)
 lonmin = -97.7114   # minimum longitude (west)
 latmax = 30.2448     # maximum latitude (north)
 lonmax = -97.7018   # maximum longitude (east)
+
+
+# North Berwick
+# latmin = 56.05651    # minimum latitude (south)
+# lonmin = -2.77036   # minimum longitude (west)
+# latmax = 56.06375    # maximum latitude (north)
+# lonmax = -2.71654  # maximum longitude (east)
 
 
 # do you want to replace existing output files? default is False
@@ -51,6 +59,14 @@ hole_width = 50 # in yards
 # enter a fraction
 
 short_filter = 0.8
+
+
+# draw shared/overlapping fairways? (experimental)
+# when False (default), only fairways that fit entirely within the hole's extent are drawn.
+# this avoids issues caused by other holes' fairways.
+# set to True for e.g. holes with shared fairways (e.g. North Berwick 1 & 18).
+
+draw_all_fairways = False
 
 
 
@@ -123,4 +139,4 @@ green_topo_scale_m = 5.0
 
 if __name__ == "__main__":
     print('start: ', datetime.now().time())
-    book = generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=hole_width,short_factor=short_filter,med_factor=med_filter,include_trees=include_trees,in_meters=in_meters,include_topo=include_topo,topo_interval=topo_interval,include_topo_labels=include_topo_labels,topo_index_every=topo_index_every,green_topo_interval=green_topo_interval,green_topo_style=green_topo_style,green_topo_scale_m=green_topo_scale_m)
+    book = generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=hole_width,short_factor=short_filter,med_factor=med_filter,include_trees=include_trees,in_meters=in_meters,include_topo=include_topo,topo_interval=topo_interval,include_topo_labels=include_topo_labels,topo_index_every=topo_index_every,green_topo_interval=green_topo_interval,green_topo_style=green_topo_style,green_topo_scale_m=green_topo_scale_m,draw_all_fairways=draw_all_fairways)

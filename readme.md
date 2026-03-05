@@ -8,6 +8,13 @@ This project wouldn't be possible without OpenStreetMap - please support them as
 
 ## Release Notes
 
+**Mar 2026 - Version 0.3**
+* Added initial support for elevation contour lines (US-only)
+* Added green slope diagrams with same elevation data (US-only)
+* Added support to draw large bodies of water like rivers and oceans
+* Various bug fixes
+
+
 **Jan 2025 - Version 0.2**
 * Added a toggle to calculate distances in meters
 * Added a toggle for whether to map individual trees

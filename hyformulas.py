@@ -72,8 +72,8 @@ def getOSMGolfData(bottom_lat, left_lon, top_lat, right_lon, printf=print):
     coord_string = str(bottom_lat) + "," + str(left_lon) + "," + str(top_lat) + "," + str(right_lon)
 
     # use the coordinate string to pull the data through Overpass
-    # we want all golf ways, with some additions for woods, trees, and water hazards
-    query = "(way['golf'](" + coord_string + ");way['natural'='wood'](" + coord_string + ");node['natural'='tree'](" + coord_string + ");way['landuse'='forest'](" + coord_string + ");way['natural'='water'](" + coord_string + ");relation['golf'='fairway'](" + coord_string + "););out body;>;out skel qt;"
+    # we want all golf ways, with some additions for woods, trees, water hazards, riverbanks, and coastlines
+    query = "(way['golf'](" + coord_string + ");way['natural'='wood'](" + coord_string + ");node['natural'='tree'](" + coord_string + ");way['landuse'='forest'](" + coord_string + ");way['natural'='water'](" + coord_string + ");way['waterway'='riverbank'](" + coord_string + ");way['natural'='coastline'](" + coord_string + ");relation['golf'='fairway'](" + coord_string + "););out body;>;out skel qt;"
 
     # try the primary Overpass server first, then fall back to mirrors
     for url in [None, "https://overpass.kumi.systems/api/interpreter", "https://overpass.openstreetmap.ru/api/interpreter", "https://overpass-api.de/api/interpreter"]:
@@ -337,6 +337,9 @@ def categorizeWays(hole_result, hole_minlat, hole_minlon, hole_maxlat, hole_maxl
         if natural_type == "water":
             golf_type = "water_hazard"
 
+        if way.tags.get("waterway", None) == "riverbank":
+            golf_type = "water_hazard"
+
         if natural_type == "wood" or way.tags.get("landuse", None) == "forest":
             golf_type = "woods"
 
@@ -401,9 +404,198 @@ def categorizeWays(hole_result, hole_minlat, hole_minlon, hole_maxlat, hole_maxl
             trees.append(translateNodestoNP([node], hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_dim, y_dim))
 
 
+    # add any ocean/sea polygons derived from coastline ways
+    water_hazards.extend(coastlineToPolygons(hole_result, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_dim, y_dim))
+
     # give back a list of the numpy arrays for each feature type
 
     return sand_traps, tee_boxes, fairways, water_hazards, woods, trees
+
+
+# chain OSM coastline ways into ordered lat/lon paths by matching endpoint node IDs
+
+def _chainCoastlineWays(coastline_ways):
+
+    way_data = []
+    for way in coastline_ways:
+        try:
+            nodes = way.nodes
+        except overpy.exception.DataIncomplete:
+            nodes = way.get_nodes(resolve_missing=True)
+        latlons = [(float(n.lat), float(n.lon)) for n in nodes]
+        way_data.append({'latlons': latlons, 'start_id': nodes[0].id, 'end_id': nodes[-1].id, 'used': False})
+
+    # build lookup: start_node_id -> way index (coastlines are directed, so only chain forward)
+    node_starts = {wd['start_id']: i for i, wd in enumerate(way_data)}
+
+    chains = []
+    for start_idx in range(len(way_data)):
+        wd = way_data[start_idx]
+        if wd['used']:
+            continue
+        wd['used'] = True
+        chain = list(wd['latlons'])
+        current_end_id = wd['end_id']
+
+        while current_end_id in node_starts:
+            next_idx = node_starts[current_end_id]
+            next_wd = way_data[next_idx]
+            if next_wd['used']:
+                break
+            next_wd['used'] = True
+            chain.extend(next_wd['latlons'][1:])  # skip duplicate connecting node
+            current_end_id = next_wd['end_id']
+
+        chains.append(chain)
+
+    return chains
+
+
+# clip a lat/lon segment to a bounding box using Liang-Barsky; returns clipped endpoints or None
+
+def _clipSegmentToBBox(p1, p2, minlat, minlon, maxlat, maxlon):
+
+    lat1, lon1 = p1
+    lat2, lon2 = p2
+    dlat, dlon = lat2 - lat1, lon2 - lon1
+    t0, t1 = 0.0, 1.0
+
+    for p, q in [(-dlat, lat1 - minlat), (dlat, maxlat - lat1),
+                 (-dlon, lon1 - minlon), (dlon, maxlon - lon1)]:
+        if p == 0:
+            if q < 0:
+                return None
+        elif p < 0:
+            t0 = max(t0, q / p)
+        else:
+            t1 = min(t1, q / p)
+
+    if t0 > t1:
+        return None
+
+    return (lat1 + t0 * dlat, lon1 + t0 * dlon), (lat1 + t1 * dlat, lon1 + t1 * dlon)
+
+
+# return the clockwise position (0-4) of a lat/lon point on the bbox boundary
+# 0 = NE corner, 0-1 = east edge going south, 1 = SE, 1-2 = south edge going west,
+# 2 = SW, 2-3 = west edge going north, 3 = NW, 3-4 = north edge going east
+
+def _clockwisePos(lat, lon, minlat, minlon, maxlat, maxlon):
+
+    lat_r = maxlat - minlat
+    lon_r = maxlon - minlon
+
+    d_east  = abs(lon - maxlon)
+    d_south = abs(lat - minlat)
+    d_west  = abs(lon - minlon)
+    d_north = abs(lat - maxlat)
+
+    nearest = min(d_east, d_south, d_west, d_north)
+
+    if nearest == d_east:
+        return (maxlat - lat) / lat_r          # 0 .. 1
+    elif nearest == d_south:
+        return 1 + (maxlon - lon) / lon_r      # 1 .. 2
+    elif nearest == d_west:
+        return 2 + (lat - minlat) / lat_r      # 2 .. 3
+    else:
+        return 3 + (lon - minlon) / lon_r      # 3 .. 4
+
+
+# given two clockwise positions on the bbox boundary, return the bbox corner lat/lon points
+# that fall between pos_end and pos_start going clockwise (i.e., increasing pos mod 4)
+
+def _cornersClockwiseBetween(pos_end, pos_start, minlat, minlon, maxlat, maxlon):
+
+    # corners and their clockwise positions: SE=1, SW=2, NW=3, NE=4(=0)
+    all_corners = [
+        (1.0, (minlat, maxlon)),  # SE
+        (2.0, (minlat, minlon)),  # SW
+        (3.0, (maxlat, minlon)),  # NW
+        (4.0, (maxlat, maxlon)),  # NE
+    ]
+
+    result = []
+    arc_len = (pos_start - pos_end) % 4
+    if arc_len == 0:
+        return []
+
+    for corner_pos, corner_latlon in all_corners:
+        dist_from_end = (corner_pos - pos_end) % 4
+        if 0 < dist_from_end < arc_len:
+            result.append((dist_from_end, corner_latlon))
+
+    result.sort(key=lambda x: x[0])
+    return [r[1] for r in result]
+
+
+# convert natural=coastline ways in the OSM result into filled ocean polygon arrays.
+# OSM coastline convention: land is to the LEFT of way direction, ocean to the RIGHT.
+# open chains are closed by tracing the bbox boundary clockwise (which stays on the ocean/right side).
+
+def coastlineToPolygons(hole_result, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_dim, y_dim):
+
+    coastline_ways = [w for w in hole_result.ways if w.tags.get("natural") == "coastline"]
+    if not coastline_ways:
+        return []
+
+    chains = _chainCoastlineWays(coastline_ways)
+    polygons = []
+
+    for chain in chains:
+        if len(chain) < 2:
+            continue
+
+        # clip the chain to the bbox, collecting continuous segments
+        segments = []
+        current_seg = []
+
+        for i in range(len(chain) - 1):
+            clipped = _clipSegmentToBBox(chain[i], chain[i + 1],
+                                         hole_minlat, hole_minlon, hole_maxlat, hole_maxlon)
+            if clipped is None:
+                if current_seg:
+                    segments.append(current_seg)
+                    current_seg = []
+                continue
+
+            c1, c2 = clipped
+            if not current_seg:
+                current_seg = [c1, c2]
+            elif abs(current_seg[-1][0] - c1[0]) < 1e-9 and abs(current_seg[-1][1] - c1[1]) < 1e-9:
+                current_seg.append(c2)
+            else:
+                segments.append(current_seg)
+                current_seg = [c1, c2]
+
+        if current_seg:
+            segments.append(current_seg)
+
+        for seg in segments:
+            if len(seg) < 2:
+                continue
+
+            start_pt = seg[0]
+            end_pt = seg[-1]
+
+            pos_start = _clockwisePos(start_pt[0], start_pt[1], hole_minlat, hole_minlon, hole_maxlat, hole_maxlon)
+            pos_end   = _clockwisePos(end_pt[0],   end_pt[1],   hole_minlat, hole_minlon, hole_maxlat, hole_maxlon)
+
+            closing = _cornersClockwiseBetween(pos_end, pos_start, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon)
+
+            all_latlons = seg + closing
+
+            # convert to pixel coords using the same convention as translateWaytoNP:
+            # point = (yfactor, xfactor) = (lat-based, lon-based) after the axis swap
+            pixel_pts = []
+            for lat, lon in all_latlons:
+                yfactor = int(((lat - hole_minlat) / (hole_maxlat - hole_minlat)) * y_dim)
+                xfactor = int(((lon - hole_minlon) / (hole_maxlon - hole_minlon)) * x_dim)
+                pixel_pts.append((yfactor, xfactor))
+
+            polygons.append(np.array(pixel_pts))
+
+    return polygons
 
 
 # given a numpy array and an image, fill in the array as a polygon on the image (in a given color)
@@ -563,7 +755,7 @@ def createHoleBoundingBox(rotated_hole_array, ypp):
 
 # take a list of features and filter out anything that is too far from the hole we are drawing right now
 
-def filterArrayList(rotated_hole_array, feature_list, ypp, par, tee_box=0, fairway=0, filter_yards=50, small_filter=1, med_filter=1):
+def filterArrayList(rotated_hole_array, feature_list, ypp, par, tee_box=0, fairway=0, filter_yards=50, small_filter=1, med_filter=1, draw_all_fairways=False):
     
     # print('Filtering features by hole: ', datetime.now().time())
     
@@ -638,16 +830,25 @@ def filterArrayList(rotated_hole_array, feature_list, ypp, par, tee_box=0, fairw
 
 
         # first step - if the center of our object is outside the hole bounding box,
-        # let's filter it out
+        # let's filter it out.
+        # when draw_all_fairways is True, fairways skip the centroid y check so that
+        # shared fairways (e.g. North Berwick 1/18) that extend past the green aren't
+        # dropped before the extent check below gets a chance to evaluate them.
 
-        if y > bb_ymax or y < (bb_ymin + tee_box_filter) or x < bb_xmin or x > bb_xmax:
-            # print("Object outside bounding box filtered out")
+        if x < bb_xmin or x > bb_xmax:
             continue
+
+        if not (fairway and draw_all_fairways):
+            if y > bb_ymax or y < (bb_ymin + tee_box_filter):
+                # print("Object outside bounding box filtered out")
+                continue
 
 
         # we can add another easy check for whether a fairway belongs to the
         # current hole by seeing if it has any points that go behind the tee box or
-        # past the green - if it does, we'll filter it out
+        # past the green - if it does, we'll filter it out.
+        # when draw_all_fairways is True, only filter if there is no y-range overlap
+        # at all, so shared fairways that extend beyond the green are still drawn.
 
         if fairway == 1:
 
@@ -660,9 +861,14 @@ def filterArrayList(rotated_hole_array, feature_list, ypp, par, tee_box=0, fairw
                 if point[1] < minpoint[1]:
                     minpoint = point
 
-            if maxpoint[1] > bb_ymax or minpoint[1] < bb_ymin:
-                # print("Fairway filtered out - points outside of bounding box")
-                continue
+            if draw_all_fairways:
+                if maxpoint[1] < bb_ymin or minpoint[1] > bb_ymax:
+                    # print("Fairway filtered out - no y-range overlap with hole")
+                    continue
+            else:
+                if maxpoint[1] > bb_ymax or minpoint[1] < bb_ymin:
+                    # print("Fairway filtered out - points outside of bounding box")
+                    continue
 
 
         # now we're getting to trickier filtering
@@ -2327,7 +2533,7 @@ def drawIndexContours(image, index_contour_list, color, text_size):
         labeled_positions.append((x, y))
 
 
-def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=50,short_factor=1,med_factor=1,include_trees=True,in_meters=False,include_topo=False,topo_interval=2.0,include_topo_labels=True,topo_index_every=5,green_topo_interval=0.5,green_topo_style='gradient',green_topo_scale_m=5.0):
+def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=50,short_factor=1,med_factor=1,include_trees=True,in_meters=False,include_topo=False,topo_interval=2.0,include_topo_labels=True,topo_index_every=5,green_topo_interval=0.5,green_topo_style='gradient',green_topo_scale_m=5.0,draw_all_fairways=False):
 
     # print('Getting core distances: ', datetime.now().time())
     
@@ -2478,7 +2684,7 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 
         # we need to filter out any features that don't belong to this hole
         # (example - another hole's fairway that might be close by)
-        filtered_fairways = filterArrayList(rotated_waypoints, rotated_fairways, ypp, hole_par, fairway=1, filter_yards=filter_width, small_filter=short_factor, med_filter=med_factor)
+        filtered_fairways = filterArrayList(rotated_waypoints, rotated_fairways, ypp, hole_par, fairway=1, filter_yards=filter_width, small_filter=short_factor, med_filter=med_factor, draw_all_fairways=draw_all_fairways)
         filtered_tee_boxes = filterArrayList(rotated_waypoints, rotated_tee_boxes, ypp, hole_par, tee_box=1, filter_yards=filter_width, small_filter=short_factor, med_filter=med_factor)
         filtered_water_hazards = filterArrayList(rotated_waypoints, rotated_water_hazards, ypp, hole_par, filter_yards=None)
         filtered_sand_traps = filterArrayList(rotated_waypoints, rotated_sand_traps, ypp, hole_par, filter_yards=filter_width, small_filter=short_factor, med_filter=med_factor)
@@ -2688,7 +2894,7 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 
 
         # and again, we want to filter out anything that isn't close by and relevant
-        filtered_fairways = filterArrayList(rotated_waypoints, rotated_fairways, ypp, hole_par, fairway=1, filter_yards=filter_width, small_filter=short_factor, med_filter=med_factor)
+        filtered_fairways = filterArrayList(rotated_waypoints, rotated_fairways, ypp, hole_par, fairway=1, filter_yards=filter_width, small_filter=short_factor, med_filter=med_factor, draw_all_fairways=draw_all_fairways)
         filtered_tee_boxes = filterArrayList(rotated_waypoints, rotated_tee_boxes, ypp, hole_par, tee_box=1, filter_yards=filter_width, small_filter=short_factor, med_filter=med_factor)
         filtered_water_hazards = filterArrayList(rotated_waypoints, rotated_water_hazards, ypp, hole_par, filter_yards=None)
         filtered_sand_traps = filterArrayList(rotated_waypoints, rotated_sand_traps, ypp, hole_par, filter_yards=None)
