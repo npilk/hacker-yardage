@@ -17,6 +17,11 @@ lonmin = -97.7114   # minimum longitude (west)
 latmax = 30.2448     # maximum latitude (north)
 lonmax = -97.7018   # maximum longitude (east)
 
+latmin = 56.05651    # minimum latitude (south)
+lonmin = -2.77036   # minimum longitude (west)
+latmax = 56.06375    # maximum latitude (north)
+lonmax = -2.71654  # maximum longitude (east)
+
 
 # do you want to replace existing output files? default is False
 # change this to True if you want to overwrite existing files in the output folder
@@ -43,7 +48,7 @@ green_arrow_color = '#000000'  # black arrows on green close-ups
 # (objects that are more than this number of yards
 # from the center line will be filtered out)
 
-hole_width = 50 # in yards
+hole_width = 80 # in yards
 
 
 # do you want to filter more aggressively near the tees?
@@ -82,7 +87,7 @@ in_meters = False
 # requires py3dep (pip install py3dep) - data is from free USGS 3DEP, no API key needed
 # note: 3DEP data covers the US only; contours will be silently skipped for international courses
 
-include_topo = True
+include_topo = False
 
 # contour interval in meters (2.0m ≈ 6.5 ft is a good default for golf courses)
 
