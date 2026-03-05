@@ -755,7 +755,7 @@ def createHoleBoundingBox(rotated_hole_array, ypp):
 
 # take a list of features and filter out anything that is too far from the hole we are drawing right now
 
-def filterArrayList(rotated_hole_array, feature_list, ypp, par, tee_box=0, fairway=0, filter_yards=50, small_filter=1, med_filter=1):
+def filterArrayList(rotated_hole_array, feature_list, ypp, par, tee_box=0, fairway=0, filter_yards=50, small_filter=1, med_filter=1, draw_all_fairways=False):
     
     # print('Filtering features by hole: ', datetime.now().time())
     
@@ -831,25 +831,24 @@ def filterArrayList(rotated_hole_array, feature_list, ypp, par, tee_box=0, fairw
 
         # first step - if the center of our object is outside the hole bounding box,
         # let's filter it out.
-        # for fairways, skip the y check here - a shared fairway (e.g. North Berwick 1/18)
-        # can extend well past the green, putting its centroid outside the y range.
-        # the fairway extent check below handles y-range filtering for fairways.
+        # when draw_all_fairways is True, fairways skip the centroid y check so that
+        # shared fairways (e.g. North Berwick 1/18) that extend past the green aren't
+        # dropped before the extent check below gets a chance to evaluate them.
 
         if x < bb_xmin or x > bb_xmax:
             continue
 
-        if not fairway:
+        if not (fairway and draw_all_fairways):
             if y > bb_ymax or y < (bb_ymin + tee_box_filter):
                 # print("Object outside bounding box filtered out")
                 continue
 
 
         # we can add another easy check for whether a fairway belongs to the
-        # current hole by seeing if its y range has any overlap with the hole.
-        # we only filter it out if it has NO overlap at all (i.e. it's entirely
-        # above the tee or entirely below the green).
-        # note: we used to filter if any single point was outside the hole range,
-        # but that incorrectly excluded shared fairways that extend past the green.
+        # current hole by seeing if it has any points that go behind the tee box or
+        # past the green - if it does, we'll filter it out.
+        # when draw_all_fairways is True, only filter if there is no y-range overlap
+        # at all, so shared fairways that extend beyond the green are still drawn.
 
         if fairway == 1:
 
@@ -862,9 +861,14 @@ def filterArrayList(rotated_hole_array, feature_list, ypp, par, tee_box=0, fairw
                 if point[1] < minpoint[1]:
                     minpoint = point
 
-            if maxpoint[1] < bb_ymin or minpoint[1] > bb_ymax:
-                # print("Fairway filtered out - no y-range overlap with hole")
-                continue
+            if draw_all_fairways:
+                if maxpoint[1] < bb_ymin or minpoint[1] > bb_ymax:
+                    # print("Fairway filtered out - no y-range overlap with hole")
+                    continue
+            else:
+                if maxpoint[1] > bb_ymax or minpoint[1] < bb_ymin:
+                    # print("Fairway filtered out - points outside of bounding box")
+                    continue
 
 
         # now we're getting to trickier filtering
@@ -2529,7 +2533,7 @@ def drawIndexContours(image, index_contour_list, color, text_size):
         labeled_positions.append((x, y))
 
 
-def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=50,short_factor=1,med_factor=1,include_trees=True,in_meters=False,include_topo=False,topo_interval=2.0,include_topo_labels=True,topo_index_every=5,green_topo_interval=0.5,green_topo_style='gradient',green_topo_scale_m=5.0):
+def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=50,short_factor=1,med_factor=1,include_trees=True,in_meters=False,include_topo=False,topo_interval=2.0,include_topo_labels=True,topo_index_every=5,green_topo_interval=0.5,green_topo_style='gradient',green_topo_scale_m=5.0,draw_all_fairways=False):
 
     # print('Getting core distances: ', datetime.now().time())
     
@@ -2680,7 +2684,7 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 
         # we need to filter out any features that don't belong to this hole
         # (example - another hole's fairway that might be close by)
-        filtered_fairways = filterArrayList(rotated_waypoints, rotated_fairways, ypp, hole_par, fairway=1, filter_yards=filter_width, small_filter=short_factor, med_filter=med_factor)
+        filtered_fairways = filterArrayList(rotated_waypoints, rotated_fairways, ypp, hole_par, fairway=1, filter_yards=filter_width, small_filter=short_factor, med_filter=med_factor, draw_all_fairways=draw_all_fairways)
         filtered_tee_boxes = filterArrayList(rotated_waypoints, rotated_tee_boxes, ypp, hole_par, tee_box=1, filter_yards=filter_width, small_filter=short_factor, med_filter=med_factor)
         filtered_water_hazards = filterArrayList(rotated_waypoints, rotated_water_hazards, ypp, hole_par, filter_yards=None)
         filtered_sand_traps = filterArrayList(rotated_waypoints, rotated_sand_traps, ypp, hole_par, filter_yards=filter_width, small_filter=short_factor, med_filter=med_factor)
@@ -2890,7 +2894,7 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 
 
         # and again, we want to filter out anything that isn't close by and relevant
-        filtered_fairways = filterArrayList(rotated_waypoints, rotated_fairways, ypp, hole_par, fairway=1, filter_yards=filter_width, small_filter=short_factor, med_filter=med_factor)
+        filtered_fairways = filterArrayList(rotated_waypoints, rotated_fairways, ypp, hole_par, fairway=1, filter_yards=filter_width, small_filter=short_factor, med_filter=med_factor, draw_all_fairways=draw_all_fairways)
         filtered_tee_boxes = filterArrayList(rotated_waypoints, rotated_tee_boxes, ypp, hole_par, tee_box=1, filter_yards=filter_width, small_filter=short_factor, med_filter=med_factor)
         filtered_water_hazards = filterArrayList(rotated_waypoints, rotated_water_hazards, ypp, hole_par, filter_yards=None)
         filtered_sand_traps = filterArrayList(rotated_waypoints, rotated_sand_traps, ypp, hole_par, filter_yards=None)
