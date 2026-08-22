@@ -7,6 +7,7 @@ import imutils
 from scipy.spatial import distance as dist
 from scipy.interpolate import RegularGridInterpolator
 import os
+from contextlib import contextmanager
 from datetime import datetime
 
 # convert hex to bgr format for numpy
@@ -42,6 +43,65 @@ def getBoundingBoxLatLon(nodes):
 
 
 
+# Overpass servers to try, in order - the main OSM instance first, then public
+# mirrors which are only used if it is unavailable
+
+OVERPASS_URLS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.openstreetmap.ru/api/interpreter",
+]
+
+
+# how long (in seconds) to wait on a single Overpass server before giving up
+# and trying the next one
+
+OVERPASS_TIMEOUT = 60
+
+
+# overpy calls urllib's urlopen without a timeout, so a server which accepts the
+# connection but never answers will hang until the operating system gives up
+# (around two minutes on Linux).  this patches a timeout in for the duration of
+# a query, and puts overpy back the way we found it afterwards.
+
+@contextmanager
+def overpassTimeout(timeout):
+
+    original_urlopen = overpy.urlopen
+
+    def urlopen_with_timeout(url, data=None, **kwargs):
+        kwargs.setdefault("timeout", timeout)
+        return original_urlopen(url, data, **kwargs)
+
+    overpy.urlopen = urlopen_with_timeout
+
+    try:
+        yield
+    finally:
+        overpy.urlopen = original_urlopen
+
+
+# run an Overpass query, trying each server in turn until one answers
+
+def runOverpassQuery(query, error_msg, printf=print):
+
+    # note that connection level failures (timed out, refused, DNS problems) come
+    # out of overpy as plain OSErrors rather than OverPyExceptions - we need to
+    # catch both here, or the first unreachable server ends the run and the
+    # remaining servers never get tried
+
+    for url in OVERPASS_URLS:
+        try:
+            with overpassTimeout(OVERPASS_TIMEOUT):
+                return overpy.Overpass(url=url).query(query)
+        except (overpy.exception.OverPyException, OSError) as e:
+            printf("Could not get data from " + url + " (" + str(e) + ") - trying another server...")
+            continue
+
+    printf(error_msg)
+    return None
+
+
 # function to get the golf holes contained within a given bounding box
 
 def getOSMGolfWays(bottom_lat, left_lon, top_lat, right_lon, printf=print):
@@ -51,16 +111,9 @@ def getOSMGolfWays(bottom_lat, left_lon, top_lat, right_lon, printf=print):
 
     query = "(way['golf'='hole'](" + coord_string + "););out body;>;out skel qt;"
 
-    # try the primary Overpass server first, then fall back to the mirror
-    for url in [None, "https://overpass.kumi.systems/api/interpreter", "https://overpass.openstreetmap.ru/api/interpreter", "https://overpass-api.de/api/interpreter"]:
-        try:
-            op = overpy.Overpass() if url is None else overpy.Overpass(url=url)
-            return op.query(query)
-        except (overpy.exception.OverPyException, overpy.exception.OverpassGatewayTimeout):
-            continue
-
-    printf("An error occurred. Check whether your coordinates are correct, or try running this tool later.")
-    return None
+    return runOverpassQuery(query,
+        "An error occurred. Check whether your coordinates are correct, or try running this tool later.",
+        printf=printf)
 
     
     
@@ -75,16 +128,9 @@ def getOSMGolfData(bottom_lat, left_lon, top_lat, right_lon, printf=print):
     # we want all golf ways, with some additions for woods, trees, water hazards, riverbanks, and coastlines
     query = "(way['golf'](" + coord_string + ");way['natural'='wood'](" + coord_string + ");node['natural'='tree'](" + coord_string + ");way['landuse'='forest'](" + coord_string + ");way['natural'='water'](" + coord_string + ");way['waterway'='riverbank'](" + coord_string + ");way['natural'='coastline'](" + coord_string + ");relation['golf'='fairway'](" + coord_string + "););out body;>;out skel qt;"
 
-    # try the primary Overpass server first, then fall back to mirrors
-    for url in [None, "https://overpass.kumi.systems/api/interpreter", "https://overpass.openstreetmap.ru/api/interpreter", "https://overpass-api.de/api/interpreter"]:
-        try:
-            op = overpy.Overpass() if url is None else overpy.Overpass(url=url)
-            return op.query(query)
-        except (overpy.exception.OverPyException, overpy.exception.OverpassGatewayTimeout):
-            continue
-
-    printf("OpenStreetMap servers are too busy right now.  Try running this tool later.")
-    return None
+    return runOverpassQuery(query,
+        "OpenStreetMap servers are too busy right now.  Try running this tool later.",
+        printf=printf)
 
 
 # calculate length of a degree of latitude at a given location
@@ -2417,7 +2463,7 @@ def drawGreenSlopeArrows(image, elev_crop, ypp, color=(60, 60, 60), grid_yards=1
                             tipLength=0.3, line_type=cv2.LINE_8)
 
 
-# draw small filled triangles pointing uphill on contour lines
+# draw small filled triangles pointing downhill on contour lines
 
 def drawContourTicks(image, positions, directions, color, tick_length=12):
 
@@ -2431,7 +2477,7 @@ def drawContourTicks(image, positions, directions, color, tick_length=12):
         uphill = directions[i]
         tang = np.array([-uphill[1], uphill[0]])
 
-        tip = pt + uphill * tick_length
+        tip = pt - uphill * tick_length
         base1 = pt + tang * base_half
         base2 = pt - tang * base_half
 
@@ -2446,94 +2492,7 @@ def drawContourTicks(image, positions, directions, color, tick_length=12):
         cv2.fillPoly(image, [triangle], color)
 
 
-# generate index contour arrays (every index_every_n-th contour level) with their elevation values
-# returns a list of (array, elevation_meters) tuples in the same pixel convention as other features
-
-def getIndexContourArrays(elev_img, interval_m=2.0, index_every_n=5):
-
-    smoothed = cv2.GaussianBlur(elev_img, (0, 0), sigmaX=3.0, sigmaY=3.0)
-
-    min_elev = float(np.nanmin(smoothed))
-    max_elev = float(np.nanmax(smoothed))
-
-    if np.isnan(min_elev) or np.isnan(max_elev) or (max_elev - min_elev) < interval_m:
-        return []
-
-    index_interval = interval_m * index_every_n
-    first_index = math.ceil(min_elev / index_interval) * index_interval
-    index_levels = np.arange(first_index, max_elev + index_interval, index_interval)
-
-    result = []
-
-    for level in index_levels:
-        mask = (smoothed >= level).astype(np.uint8) * 255
-        contours, _ = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_L1)
-
-        for contour in contours:
-            pts = contour.reshape(-1, 2).astype(float)
-            if len(pts) < 10:
-                continue
-            if cv2.contourArea(contour) < 100:
-                continue
-            result.append((pts, float(level)))
-
-    return result
-
-
-# draw index contour lines (thicker) and place one elevation label per level
-
-def drawIndexContours(image, index_contour_list, color, text_size):
-
-    if not index_contour_list:
-        return
-
-    text_weight = max(1, round(text_size * 1.5))
-
-    # draw all index contours thick
-    for contour, elevation in index_contour_list:
-        pts = np.int32(contour).reshape((-1, 1, 2))
-        cv2.polylines(image, [pts], isClosed=False, color=color, thickness=4)
-
-    # group contours by elevation level, pick the largest at each level for labeling
-    by_level = {}
-    for contour, elevation in index_contour_list:
-        key = round(elevation, 1)
-        if key not in by_level:
-            by_level[key] = []
-        by_level[key].append(contour)
-
-    h, w = image.shape[:2]
-    labeled_positions = []
-
-    for elevation in sorted(by_level):
-        best = max(by_level[elevation], key=lambda c: len(c))
-
-        label = f"{int(round(elevation))}m"
-        (lw, lh), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, text_size, text_weight)
-
-        # find the topmost point that isn't too close to an image edge
-        margin = lh + 10
-        mask = ((best[:, 1] > margin) & (best[:, 1] < h - margin) &
-                (best[:, 0] > lw // 2 + margin) & (best[:, 0] < w - lw // 2 - margin))
-        valid = best[mask] if mask.any() else best
-
-        pt = valid[np.argmin(valid[:, 1])]
-        x = int(pt[0]) - lw // 2
-        y = int(pt[1]) - 5
-
-        # skip if too close to an already-placed label
-        too_close = any(abs(x - px) < lw + 10 and abs(y - py) < lh + 5
-                        for px, py in labeled_positions)
-        if too_close:
-            continue
-
-        # small white background rectangle so the label is readable over terrain colors
-        cv2.rectangle(image, (x - 2, y - lh - 2), (x + lw + 2, y + 2), (255, 255, 255), -1)
-        cv2.putText(image, label, (x, y), cv2.FONT_HERSHEY_SIMPLEX, text_size, color, text_weight)
-        labeled_positions.append((x, y))
-
-
-def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=50,short_factor=1,med_factor=1,include_trees=True,in_meters=False,include_topo=False,topo_interval=2.0,include_topo_labels=True,topo_index_every=5,green_topo_interval=0.5,green_topo_style='gradient',green_topo_scale_m=5.0,draw_all_fairways=False):
+def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=50,short_factor=1,med_factor=1,include_trees=True,in_meters=False,include_topo=False,topo_interval=2.0,include_topo_labels=True,green_topo_interval=0.5,green_topo_style='gradient',green_topo_scale_m=5.0,draw_all_fairways=False):
 
     # print('Getting core distances: ', datetime.now().time())
     

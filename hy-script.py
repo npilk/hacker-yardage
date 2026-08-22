@@ -20,10 +20,17 @@ lonmax = -97.7018   # maximum longitude (east)
 
 
 # North Berwick
-# latmin = 56.05651    # minimum latitude (south)
-# lonmin = -2.77036   # minimum longitude (west)
-# latmax = 56.06375    # maximum latitude (north)
-# lonmax = -2.71654  # maximum longitude (east)
+latmin = 56.05651    # minimum latitude (south)
+lonmin = -2.77036   # minimum longitude (west)
+latmax = 56.06375    # maximum latitude (north)
+lonmax = -2.71654  # maximum longitude (east)
+
+
+# Harpeth Hills
+latmin = 36.05035    # minimum latitude (south)
+lonmin = -86.88990   # minimum longitude (west)
+latmax = 36.06249    # maximum latitude (north)
+lonmax = -86.87490  # maximum longitude (east)
 
 
 # do you want to replace existing output files? default is False
@@ -35,7 +42,7 @@ replace_existing = False
 # colors for each feature can be customized here
 
 fairway_color = '#34E884'
-tee_box_color = '#34E884'
+tee_box_color = "#5AFCA3" #'#34E884'
 green_color = '#5AFCA3'
 rough_color = '#18BB3E' # this is the overall background color
 tree_color = '#178200'
@@ -66,7 +73,7 @@ short_filter = 0.8
 # this avoids issues caused by other holes' fairways.
 # set to True for e.g. holes with shared fairways (e.g. North Berwick 1 & 18).
 
-draw_all_fairways = False
+draw_all_fairways = True
 
 
 
@@ -108,10 +115,6 @@ topo_interval = 1.0
 
 include_topo_labels = True
 
-# how often to draw an index contour (e.g. 5 = every 5th contour level gets a label)
-
-topo_index_every = 5
-
 
 # contour interval for green close-up images (finer than the hole image to show subtle breaks)
 # 0.3m ≈ 1ft is a good default for reading green contours
@@ -139,4 +142,4 @@ green_topo_scale_m = 5.0
 
 if __name__ == "__main__":
     print('start: ', datetime.now().time())
-    book = generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=hole_width,short_factor=short_filter,med_factor=med_filter,include_trees=include_trees,in_meters=in_meters,include_topo=include_topo,topo_interval=topo_interval,include_topo_labels=include_topo_labels,topo_index_every=topo_index_every,green_topo_interval=green_topo_interval,green_topo_style=green_topo_style,green_topo_scale_m=green_topo_scale_m,draw_all_fairways=draw_all_fairways)
+    book = generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=hole_width,short_factor=short_filter,med_factor=med_filter,include_trees=include_trees,in_meters=in_meters,include_topo=include_topo,topo_interval=topo_interval,include_topo_labels=include_topo_labels,green_topo_interval=green_topo_interval,green_topo_style=green_topo_style,green_topo_scale_m=green_topo_scale_m,draw_all_fairways=draw_all_fairways)

@@ -106,12 +106,6 @@ def run_program():
 	include_topo_labels = include_topo_labels_var.get()
 
 	try:
-		topo_index_every = int(ent_topo_index.get())
-	except ValueError:
-		tk.messagebox.showerror(title="Error", message="Please enter a whole number for the index contour interval.")
-		return False
-
-	try:
 		green_topo_interval = float(ent_green_topo_interval.get())
 	except ValueError:
 		tk.messagebox.showerror(title="Error", message="Please enter a valid number for the green contour interval.")
@@ -132,7 +126,7 @@ def run_program():
 
 	def generate():
 		try:
-			generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=hole_width,short_factor=small_scale,med_factor=med_scale,include_trees=include_trees,in_meters=in_meters,include_topo=include_topo,topo_interval=topo_interval,include_topo_labels=include_topo_labels,topo_index_every=topo_index_every,green_topo_interval=green_topo_interval,green_topo_style=green_topo_style,green_topo_scale_m=green_topo_scale_m)
+			generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filter_width=hole_width,short_factor=small_scale,med_factor=med_scale,include_trees=include_trees,in_meters=in_meters,include_topo=include_topo,topo_interval=topo_interval,include_topo_labels=include_topo_labels,green_topo_interval=green_topo_interval,green_topo_style=green_topo_style,green_topo_scale_m=green_topo_scale_m)
 		except Exception as e:
 			error[0] = e
 
@@ -396,16 +390,6 @@ ent_include_topo_labels.select()
 ent_include_topo_labels.grid(row=5, column=0, columnspan=2, padx=5, pady=5)
 
 
-frm_topo_index = tk.Frame(master=frm_topo)
-
-lbl_topo_index = tk.Label(master=frm_topo_index, text="Label every Nth contour:", anchor="e", width=22)
-ent_topo_index = tk.Entry(master=frm_topo_index, width=5)
-ent_topo_index.insert(0, "5")
-
-lbl_topo_index.pack(side="left")
-ent_topo_index.pack(side="left")
-
-frm_topo_index.grid(row=6, column=0, columnspan=2, padx=5, pady=5)
 
 
 frm_green_topo_interval = tk.Frame(master=frm_topo)
