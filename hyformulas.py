@@ -1,4 +1,5 @@
 import overpy
+import urllib.request
 import numpy as np
 import cv2
 import math
@@ -59,10 +60,19 @@ OVERPASS_URLS = [
 OVERPASS_TIMEOUT = 60
 
 
+# a User-Agent identifying this tool.  overpy passes a bare url to urlopen, which
+# means urllib sends its default "Python-urllib/x.y" - overpass-api.de now answers
+# that with a 406, so we have to send something of our own.  the Overpass usage
+# policy asks for a descriptive agent anyway.
+
+USER_AGENT = "hacker-yardage/1.0 (+https://github.com/npilk/hacker-yardage)"
+
+
 # overpy calls urllib's urlopen without a timeout, so a server which accepts the
 # connection but never answers will hang until the operating system gives up
 # (around two minutes on Linux).  this patches a timeout in for the duration of
-# a query, and puts overpy back the way we found it afterwards.
+# a query - and, while we are in there, our User-Agent - then puts overpy back
+# the way we found it afterwards.
 
 @contextmanager
 def overpassTimeout(timeout):
@@ -71,7 +81,8 @@ def overpassTimeout(timeout):
 
     def urlopen_with_timeout(url, data=None, **kwargs):
         kwargs.setdefault("timeout", timeout)
-        return original_urlopen(url, data, **kwargs)
+        request = urllib.request.Request(url, data=data, headers={"User-Agent": USER_AGENT})
+        return original_urlopen(request, **kwargs)
 
     overpy.urlopen = urlopen_with_timeout
 
@@ -109,7 +120,7 @@ def getOSMGolfWays(bottom_lat, left_lon, top_lat, right_lon, printf=print):
     # create the coordinate string for our request - order is South, West, North, East
     coord_string = str(bottom_lat) + "," + str(left_lon) + "," + str(top_lat) + "," + str(right_lon)
 
-    query = "(way['golf'='hole'](" + coord_string + "););out body;>;out skel qt;"
+    query = "[out:json];(way['golf'='hole'](" + coord_string + "););out body;>;out skel qt;"
 
     return runOverpassQuery(query,
         "An error occurred. Check whether your coordinates are correct, or try running this tool later.",
@@ -126,7 +137,7 @@ def getOSMGolfData(bottom_lat, left_lon, top_lat, right_lon, printf=print):
 
     # use the coordinate string to pull the data through Overpass
     # we want all golf ways, with some additions for woods, trees, water hazards, riverbanks, and coastlines
-    query = "(way['golf'](" + coord_string + ");way['natural'='wood'](" + coord_string + ");node['natural'='tree'](" + coord_string + ");way['landuse'='forest'](" + coord_string + ");way['natural'='water'](" + coord_string + ");way['waterway'='riverbank'](" + coord_string + ");way['natural'='coastline'](" + coord_string + ");relation['golf'='fairway'](" + coord_string + "););out body;>;out skel qt;"
+    query = "[out:json];(way['golf'](" + coord_string + ");way['natural'='wood'](" + coord_string + ");node['natural'='tree'](" + coord_string + ");way['landuse'='forest'](" + coord_string + ");way['natural'='water'](" + coord_string + ");way['waterway'='riverbank'](" + coord_string + ");way['natural'='coastline'](" + coord_string + ");relation['golf'='fairway'](" + coord_string + "););out body;>;out skel qt;"
 
     return runOverpassQuery(query,
         "OpenStreetMap servers are too busy right now.  Try running this tool later.",
@@ -2505,20 +2516,30 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
         lat_degree_distance = lat_degree_distance * 0.9144
         lon_degree_distance = lon_degree_distance * 0.9144
 
-    # download golf hole info from OSM
-    result = getOSMGolfWays(latmin,lonmin,latmax,lonmax)
-    if result is None:
-        print("Error: could not download golf hole data. Check your coordinates or try again later.")
-        return False
-    ways = result.ways
-
-    # download all course feature data once (fairways, greens, bunkers, etc.)
+    # download all course data once (holes, fairways, greens, bunkers, etc.)
     # this avoids a separate API call per hole, which causes timeouts on larger courses
     print("Downloading course feature data...")
     course_result = getOSMGolfData(latmin, lonmin, latmax, lonmax)
     if course_result is None:
-        print("Error: could not download course feature data. Check your coordinates or try again later.")
+        print("Error: could not download course data. Check your coordinates or try again later.")
         return False
+
+    # the hole centerlines are already in here - way['golf'] is a superset of
+    # way['golf'='hole'] - so we pick them out rather than asking for them again.
+    # sort by hole number so the book comes out in playing order regardless of
+    # the order Overpass happened to return the ways in
+
+    ways = [way for way in course_result.ways if way.tags.get("golf") == "hole"]
+
+    def holeSortKey(way):
+        try:
+            return (0, int(way.tags.get("ref")))
+        except (TypeError, ValueError):
+            # holes missing a number get skipped further down anyway - park them
+            # at the end rather than blowing up the sort
+            return (1, 0)
+
+    ways.sort(key=holeSortKey)
 
 
     # find or create output directory
@@ -2609,9 +2630,15 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
 
 
         # find this hole's green
+        # this is only the green's *outline* - every distance we draw is measured
+        # to the last waypoint of the hole centerline, not to this polygon - so if
+        # the green isn't mapped in OSM we carry on and draw the hole without it
         green_nodes = identifyGreen(hole_way_nodes, hole_result)
 
-        green_array = translateNodestoNP(green_nodes, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_dim, y_dim)
+        if green_nodes is None:
+            green_array = None
+        else:
+            green_array = translateNodestoNP(green_nodes, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_dim, y_dim)
 
         # categorize all of the feature types (we do different things with each of them)
         sand_traps, tee_boxes, fairways, water_hazards, woods, trees = categorizeWays(hole_result, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_dim, y_dim)
@@ -2635,8 +2662,11 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
         rotated_contours = rotateArrayList(image,raw_contours,angle)
         rot_tick_positions, rot_tick_directions = rotateTickData(image, raw_tick_positions, raw_tick_directions, angle)
 
-        rotated_green = rotateArray(image,green_array,angle)
-        rotated_green_array = [rotated_green]
+        if green_array is None:
+            rotated_green_array = []
+        else:
+            rotated_green = rotateArray(image,green_array,angle)
+            rotated_green_array = [rotated_green]
 
         rotated_waypoints = rotateArray(image,way_node_array,angle)
 
@@ -2845,8 +2875,11 @@ def generateYardageBook(latmin,lonmin,latmax,lonmax,replace_existing,colors,filt
         rotated_contours = rotateArrayList(image,raw_contours,angle)
         rot_tick_pos_green, rot_tick_dir_green = rotateTickData(image, raw_tick_positions, raw_tick_directions, angle)
 
-        rotated_green = rotateArray(image,green_array,angle)
-        rotated_green_array = [rotated_green]
+        if green_array is None:
+            rotated_green_array = []
+        else:
+            rotated_green = rotateArray(image,green_array,angle)
+            rotated_green_array = [rotated_green]
 
         way_node_array = translateNodestoNP(hole_way_nodes, hole_minlat, hole_minlon, hole_maxlat, hole_maxlon, x_dim, y_dim)
         rotated_waypoints = rotateArray(image,way_node_array,angle)
