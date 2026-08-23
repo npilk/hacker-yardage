@@ -8,6 +8,11 @@ This project wouldn't be possible without OpenStreetMap - please support them as
 
 ## Release Notes
 
+**Aug 2026 - Version 0.3.1**
+* Updated user-agent and fixed a bug relating to OSM server fallback
+* Various other bug fixes
+
+
 **Mar 2026 - Version 0.3**
 * Added initial support for elevation contour lines (US-only)
 * Added green slope diagrams with same elevation data (US-only)
