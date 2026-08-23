@@ -152,7 +152,7 @@ btn_confirm.pack()
 
 link1 = tk.Label(master=frm_button, text="Support Hacker Yardage by buying me a coffee", fg="blue")
 link1.pack(pady=10)
-link1.bind("<Button-1>", lambda e: callback("https://www.buymeacoffee.com/npilk"))
+link1.bind("<Button-1>", lambda e: callback("https://www.buymeacoffee.com/elementninety3"))
 
 
 
