@@ -130,3 +130,6 @@ dmypy.json
 
 # macOS
 .DS_Store
+
+# HTTP response cache (auto-created by py3dep/async_retriever)
+cache/
